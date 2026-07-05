@@ -7,87 +7,108 @@ export type Flight = {
   period: Period
 }
 
-// モックデータ: 就航ダイヤの雛形（空席・欠航は考慮しない）
+// 実データに基づく時刻表（2026年7月時点で調査・確認）
 // キーは "出発地コード-到着地コード"
+//
+// 出典:
+// - 新千歳(CTS)発着: ANA国内線時刻表 北海道 2026/07/01〜10/24
+//   https://www.ana.co.jp/guide/plan/airinfo/dom-timetable/pdf/timetable_hokkaido_20260701_20261024.pdf
+//   （便名はNH、運航社はAKX=ANAウイングス。この期間中は日次変動なし）
+// - 丘珠(OKD)発着: JAL便名・HAC受託運航。トラベリスト(本日の発着実績)および
+//   HAC/JAL関連の検索結果から便名・時刻を確認。中標津・奥尻は季節運航に注意。
+//
+// 就航ダイヤは季節（夏ダイヤ/冬ダイヤ）ごとに変更されるため、シーズンごとの
+// 更新が必須。特に丘珠発着分は正式な全便時刻表としての裏付けが取れていない
+// 便を含むため、定期的な実データ確認を推奨。
 export const FLIGHTS: Record<string, Flight[]> = {
   "CTS-HKD": [
-    { flightNo: "JAL566", dep: "07:35", arr: "08:20", period: "AM" },
-    { flightNo: "ANA1897", dep: "10:15", arr: "11:00", period: "AM" },
-    { flightNo: "JAL570", dep: "14:40", arr: "15:25", period: "PM" },
-    { flightNo: "ANA1893", dep: "18:05", arr: "18:50", period: "PM" },
+    { flightNo: "NH4853", dep: "10:55", arr: "11:35", period: "AM" },
+    { flightNo: "NH4857", dep: "17:55", arr: "18:35", period: "PM" },
   ],
   "HKD-CTS": [
-    { flightNo: "JAL561", dep: "08:55", arr: "09:40", period: "AM" },
-    { flightNo: "ANA1890", dep: "11:35", arr: "12:20", period: "AM" },
-    { flightNo: "JAL565", dep: "16:00", arr: "16:45", period: "PM" },
-    { flightNo: "ANA1896", dep: "19:20", arr: "20:05", period: "PM" },
+    { flightNo: "NH4854", dep: "12:05", arr: "12:45", period: "AM" },
+    { flightNo: "NH4858", dep: "19:05", arr: "19:45", period: "PM" },
   ],
+  "OKD-HKD": [
+    { flightNo: "JL2751", dep: "14:40", arr: "15:10", period: "PM" },
+    { flightNo: "JL2755", dep: "17:50", arr: "18:20", period: "PM" },
+    { flightNo: "JL2759", dep: "19:10", arr: "19:40", period: "PM" },
+  ],
+  "HKD-OKD": [{ flightNo: "JL2750", dep: "14:00", arr: "14:40", period: "PM" }],
+
   "CTS-KUH": [
-    { flightNo: "ANA771", dep: "08:10", arr: "09:00", period: "AM" },
-    { flightNo: "JAL2951", dep: "11:50", arr: "12:40", period: "AM" },
-    { flightNo: "ANA775", dep: "17:15", arr: "18:05", period: "PM" },
+    { flightNo: "NH4871", dep: "07:40", arr: "08:25", period: "AM" },
+    { flightNo: "NH4873", dep: "13:20", arr: "14:05", period: "PM" },
+    { flightNo: "NH4875", dep: "15:55", arr: "16:40", period: "PM" },
   ],
   "KUH-CTS": [
-    { flightNo: "ANA770", dep: "09:40", arr: "10:30", period: "AM" },
-    { flightNo: "JAL2950", dep: "13:20", arr: "14:10", period: "PM" },
-    { flightNo: "ANA774", dep: "18:45", arr: "19:35", period: "PM" },
+    { flightNo: "NH4872", dep: "08:55", arr: "09:40", period: "AM" },
+    { flightNo: "NH4874", dep: "14:35", arr: "15:20", period: "PM" },
+    { flightNo: "NH4876", dep: "17:10", arr: "17:55", period: "PM" },
   ],
-  "CTS-OBO": [
-    { flightNo: "ANA761", dep: "07:50", arr: "08:35", period: "AM" },
-    { flightNo: "JAL2921", dep: "12:30", arr: "13:15", period: "AM" },
-    { flightNo: "ANA765", dep: "19:00", arr: "19:45", period: "PM" },
+  "OKD-KUH": [
+    { flightNo: "JL2761", dep: "08:05", arr: "08:40", period: "AM" },
+    { flightNo: "JL2767", dep: "16:55", arr: "17:30", period: "PM" },
   ],
-  "OBO-CTS": [
-    { flightNo: "ANA760", dep: "09:05", arr: "09:50", period: "AM" },
-    { flightNo: "JAL2920", dep: "14:00", arr: "14:45", period: "PM" },
-    { flightNo: "ANA764", dep: "20:15", arr: "21:00", period: "PM" },
+  "KUH-OKD": [
+    { flightNo: "JL2762", dep: "09:15", arr: "09:50", period: "AM" },
+    { flightNo: "JL2768", dep: "18:00", arr: "18:35", period: "PM" },
   ],
-  "CTS-AKJ": [
-    { flightNo: "ANA641", dep: "08:30", arr: "09:15", period: "AM" },
-    { flightNo: "JAL471", dep: "13:05", arr: "13:50", period: "PM" },
-    { flightNo: "ANA645", dep: "17:50", arr: "18:35", period: "PM" },
-  ],
-  "AKJ-CTS": [
-    { flightNo: "ANA640", dep: "10:00", arr: "10:45", period: "AM" },
-    { flightNo: "JAL470", dep: "15:10", arr: "15:55", period: "PM" },
-    { flightNo: "ANA644", dep: "19:10", arr: "19:55", period: "PM" },
-  ],
+
   "CTS-WKJ": [
-    { flightNo: "ANA741", dep: "09:20", arr: "10:15", period: "AM" },
-    { flightNo: "ANA745", dep: "16:35", arr: "17:30", period: "PM" },
+    { flightNo: "NH4841", dep: "10:15", arr: "11:10", period: "AM" },
+    { flightNo: "NH4843", dep: "15:30", arr: "16:25", period: "PM" },
   ],
   "WKJ-CTS": [
-    { flightNo: "ANA740", dep: "11:00", arr: "11:55", period: "AM" },
-    { flightNo: "ANA744", dep: "18:15", arr: "19:10", period: "PM" },
+    { flightNo: "NH4842", dep: "11:45", arr: "12:40", period: "AM" },
+    { flightNo: "NH4844", dep: "17:00", arr: "17:55", period: "PM" },
   ],
-  "CTS-MBE": [
-    { flightNo: "ANA781", dep: "08:00", arr: "08:55", period: "AM" },
-    { flightNo: "ANA785", dep: "17:40", arr: "18:35", period: "PM" },
+
+  "CTS-MMB": [
+    { flightNo: "JL2713", dep: "07:40", arr: "08:25", period: "AM" },
+    { flightNo: "NH4861", dep: "09:30", arr: "10:15", period: "AM" },
+    { flightNo: "JL2715", dep: "12:30", arr: "13:15", period: "PM" },
+    { flightNo: "NH4865", dep: "13:20", arr: "14:05", period: "PM" },
+    { flightNo: "JL2719", dep: "16:10", arr: "16:50", period: "PM" },
+    { flightNo: "NH4867", dep: "18:40", arr: "19:30", period: "PM" },
   ],
-  "MBE-CTS": [
-    { flightNo: "ANA780", dep: "09:30", arr: "10:25", period: "AM" },
-    { flightNo: "ANA784", dep: "19:05", arr: "20:00", period: "PM" },
+  "MMB-CTS": [
+    { flightNo: "NH4862", dep: "10:50", arr: "11:40", period: "AM" },
+    { flightNo: "JL2710", dep: "08:55", arr: "09:40", period: "AM" },
+    { flightNo: "JL2714", dep: "13:55", arr: "14:40", period: "PM" },
+    { flightNo: "NH4866", dep: "14:35", arr: "15:25", period: "PM" },
+    { flightNo: "JL2718", dep: "17:25", arr: "18:10", period: "PM" },
+    { flightNo: "NH4868", dep: "20:00", arr: "20:50", period: "PM" },
   ],
-  "CTS-RIS": [
-    { flightNo: "HAC802", dep: "08:45", arr: "09:30", period: "AM" },
+  "OKD-MMB": [
+    { flightNo: "JL2721", dep: "09:00", arr: "09:40", period: "AM" },
+    { flightNo: "JL2727", dep: "17:55", arr: "18:35", period: "PM" },
   ],
-  "RIS-CTS": [
-    { flightNo: "HAC801", dep: "10:05", arr: "10:50", period: "AM" },
+  "MMB-OKD": [
+    { flightNo: "JL2722", dep: "10:10", arr: "10:45", period: "AM" },
+    { flightNo: "JL2728", dep: "19:00", arr: "19:35", period: "PM" },
   ],
-  "CTS-OIR": [
-    { flightNo: "HAC862", dep: "09:10", arr: "09:50", period: "AM" },
+
+  // 新千歳-利尻は夏季(7〜9月)のみの季節運航。丘珠-利尻は年間通期。
+  "CTS-RIS": [{ flightNo: "NH4929", dep: "12:30", arr: "13:25", period: "PM" }],
+  "RIS-CTS": [{ flightNo: "NH4930", dep: "14:05", arr: "14:55", period: "PM" }],
+  "OKD-RIS": [{ flightNo: "JL2783", dep: "07:55", arr: "08:30", period: "AM" }],
+  "RIS-OKD": [{ flightNo: "JL2788", dep: "16:25", arr: "17:05", period: "PM" }],
+
+  "OKD-SHB": [
+    { flightNo: "JL2733", dep: "09:55", arr: "10:45", period: "AM" },
+    { flightNo: "JL2739", dep: "15:20", arr: "16:10", period: "PM" },
   ],
-  "OIR-CTS": [
-    { flightNo: "HAC861", dep: "10:20", arr: "11:00", period: "AM" },
+  "SHB-OKD": [
+    { flightNo: "JL2732", dep: "11:15", arr: "12:10", period: "AM" },
+    { flightNo: "JL2738", dep: "16:25", arr: "17:05", period: "PM" },
   ],
-  "CTS-SHB": [
-    { flightNo: "ANA791", dep: "10:40", arr: "11:35", period: "AM" },
-    { flightNo: "ANA795", dep: "18:50", arr: "19:45", period: "PM" },
-  ],
-  "SHB-CTS": [
-    { flightNo: "ANA790", dep: "12:10", arr: "13:05", period: "PM" },
-    { flightNo: "ANA794", dep: "20:10", arr: "21:05", period: "PM" },
-  ],
+
+  // 奥尻線は季節運航・低頻度（金・日のみ）。丘珠線と函館線の2ルートがある。
+  "OKD-OIR": [{ flightNo: "JL2795", dep: "11:25", arr: "12:15", period: "AM" }],
+  "OIR-OKD": [{ flightNo: "JL2796", dep: "12:45", arr: "13:35", period: "PM" }],
+  "HKD-OIR": [{ flightNo: "JL2791", dep: "11:45", arr: "12:15", period: "AM" }],
+  "OIR-HKD": [{ flightNo: "JL2792", dep: "12:45", arr: "13:15", period: "PM" }],
 }
 
 export function getFlights(origin: string, destination: string): Flight[] {
