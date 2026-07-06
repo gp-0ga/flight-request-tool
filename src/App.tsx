@@ -70,6 +70,14 @@ function escapeIcsText(text: string): string {
   return text.replace(/\\/g, "\\\\").replace(/,/g, "\\,").replace(/;/g, "\\;")
 }
 
+function isIOS(): boolean {
+  const ua = navigator.userAgent
+  const isAppleTouchDevice = /iPad|iPhone|iPod/.test(ua)
+  // iPadOS 13+はUAがMacと同一になるため、タッチ対応で判別する
+  const isIPadOS = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1
+  return isAppleTouchDevice || isIPadOS
+}
+
 type CalendarEvent = {
   uid: string
   summary: string
@@ -283,6 +291,15 @@ export default function App() {
   const handleAddToCalendar = () => {
     if (calendarEvents.length === 0) return
     const ics = buildIcs(calendarEvents)
+
+    // iOS SafariはBlob+download属性だと「ファイルに保存」に落ちてしまい
+    // カレンダー追加画面が出ない。data: URLへの遷移だとカレンダーの
+    // 追加プレビューが開くため、iOSだけこの経路にする。
+    if (isIOS()) {
+      window.location.href = `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`
+      return
+    }
+
     const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
