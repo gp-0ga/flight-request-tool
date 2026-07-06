@@ -47,29 +47,54 @@ function flightLabel(flights: Flight[], flightNo: string): string {
   return f ? `${f.flightNo}(${f.dep}→${f.arr})` : ""
 }
 
-function toCalendarDateTime(date: string, time: string): string {
-  return `${date.replaceAll("-", "")}T${time.replace(":", "")}00`
+function pad2(n: number): string {
+  return String(n).padStart(2, "0")
 }
 
-function buildGoogleCalendarUrl(params: {
-  title: string
+// date/timeは日本時間(Asia/Tokyo, UTC+9, DSTなし)として解釈しUTCに変換する。
+// VTIMEZONEを持たないUTC("Z")形式にすることで、どのカレンダーアプリでも
+// 現地表示のタイムゾーン変換に依存せず正しい時刻になる。
+function toIcsUtc(date: string, time: string): string {
+  const [year, month, day] = date.split("-").map(Number)
+  const [hour, minute] = time.split(":").map(Number)
+  const d = new Date(Date.UTC(year, month - 1, day, hour - 9, minute, 0))
+  return `${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}T${pad2(d.getUTCHours())}${pad2(d.getUTCMinutes())}00Z`
+}
+
+function nowIcsUtc(): string {
+  const d = new Date()
+  return `${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}T${pad2(d.getUTCHours())}${pad2(d.getUTCMinutes())}${pad2(d.getUTCSeconds())}Z`
+}
+
+function escapeIcsText(text: string): string {
+  return text.replace(/\\/g, "\\\\").replace(/,/g, "\\,").replace(/;/g, "\\;")
+}
+
+type CalendarEvent = {
+  uid: string
+  summary: string
+  location: string
   date: string
   dep: string
   arr: string
-  details: string
-  location: string
-}): string {
-  const url = new URL("https://calendar.google.com/calendar/render")
-  url.searchParams.set("action", "TEMPLATE")
-  url.searchParams.set("text", params.title)
-  url.searchParams.set(
-    "dates",
-    `${toCalendarDateTime(params.date, params.dep)}/${toCalendarDateTime(params.date, params.arr)}`
-  )
-  url.searchParams.set("details", params.details)
-  url.searchParams.set("location", params.location)
-  url.searchParams.set("ctz", "Asia/Tokyo")
-  return url.toString()
+}
+
+function buildIcs(events: CalendarEvent[]): string {
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//flight-request-tool//JP", "CALSCALE:GREGORIAN"]
+  for (const event of events) {
+    lines.push(
+      "BEGIN:VEVENT",
+      `UID:${event.uid}`,
+      `DTSTAMP:${nowIcsUtc()}`,
+      `DTSTART:${toIcsUtc(event.date, event.dep)}`,
+      `DTEND:${toIcsUtc(event.date, event.arr)}`,
+      `SUMMARY:${escapeIcsText(event.summary)}`,
+      `LOCATION:${escapeIcsText(event.location)}`,
+      "END:VEVENT"
+    )
+  }
+  lines.push("END:VCALENDAR")
+  return lines.join("\r\n")
 }
 
 function LegPicker({
@@ -97,19 +122,6 @@ function LegPicker({
     () => filterFlights(allFlights, leg.period),
     [allFlights, leg.period]
   )
-  const selectedFlight = allFlights.find((f) => f.flightNo === leg.flightNo)
-
-  const calendarUrl = selectedFlight
-    ? buildGoogleCalendarUrl({
-        title: `出張(${title}) ${airportLabel(origin)}→${airportLabel(destination)}`,
-        date,
-        dep: selectedFlight.dep,
-        arr: selectedFlight.arr,
-        details: `便名: ${selectedFlight.flightNo}\n${airportLabel(origin)} → ${airportLabel(destination)}`,
-        location: airportLabel(origin),
-      })
-    : null
-
   return (
     <div className="space-y-2">
       <div>
@@ -138,44 +150,24 @@ function LegPicker({
               </Button>
             ))}
           </div>
-          <div className="flex items-center gap-1.5">
-            <Select
-              value={leg.flightNo}
-              onValueChange={(v) => onChange({ ...leg, flightNo: v })}
-            >
-              <SelectTrigger id={`${idPrefix}-flight`} className="w-full min-w-0 flex-1">
-                <SelectValue placeholder="便を選択" />
-              </SelectTrigger>
-              <SelectContent>
-                {flights.map((f) => (
-                  <SelectItem key={f.flightNo} value={f.flightNo}>
-                    {f.flightNo} {f.dep}→{f.arr}
-                    <Badge variant="secondary" className="ml-2">
-                      {f.period === "AM" ? "午前" : "午後"}
-                    </Badge>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {calendarUrl && (
-              <Button
-                asChild
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="shrink-0"
-              >
-                <a
-                  href={calendarUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={`${title}をカレンダーに登録`}
-                >
-                  <CalendarPlus />
-                </a>
-              </Button>
-            )}
-          </div>
+          <Select
+            value={leg.flightNo}
+            onValueChange={(v) => onChange({ ...leg, flightNo: v })}
+          >
+            <SelectTrigger id={`${idPrefix}-flight`} className="w-full min-w-0">
+              <SelectValue placeholder="便を選択" />
+            </SelectTrigger>
+            <SelectContent>
+              {flights.map((f) => (
+                <SelectItem key={f.flightNo} value={f.flightNo}>
+                  {f.flightNo} {f.dep}→{f.arr}
+                  <Badge variant="secondary" className="ml-2">
+                    {f.period === "AM" ? "午前" : "午後"}
+                  </Badge>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       )}
     </div>
@@ -243,10 +235,63 @@ export default function App() {
     inboundFlights,
   ])
 
+  const calendarEvents = useMemo(() => {
+    const events: CalendarEvent[] = []
+    const outboundFlight = outboundFlights.find((f) => f.flightNo === outbound.flightNo)
+    if (outboundFlight) {
+      events.push({
+        uid: `${outboundFlight.flightNo}-${departureDate}@flight-request-tool`,
+        summary: `${outboundFlight.flightNo} ${airportLabel(origin)}→${airportLabel(destination)}`,
+        location: airportLabel(origin),
+        date: departureDate,
+        dep: outboundFlight.dep,
+        arr: outboundFlight.arr,
+      })
+    }
+    if (tripType === "roundtrip") {
+      const inboundFlight = inboundFlights.find((f) => f.flightNo === inbound.flightNo)
+      if (inboundFlight) {
+        events.push({
+          uid: `${inboundFlight.flightNo}-${returnDate}@flight-request-tool`,
+          summary: `${inboundFlight.flightNo} ${airportLabel(destination)}→${airportLabel(origin)}`,
+          location: airportLabel(destination),
+          date: returnDate,
+          dep: inboundFlight.dep,
+          arr: inboundFlight.arr,
+        })
+      }
+    }
+    return events
+  }, [
+    tripType,
+    departureDate,
+    returnDate,
+    origin,
+    destination,
+    outbound,
+    inbound,
+    outboundFlights,
+    inboundFlights,
+  ])
+
   const handleCopy = async () => {
     await navigator.clipboard.writeText(message)
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
+  }
+
+  const handleAddToCalendar = () => {
+    if (calendarEvents.length === 0) return
+    const ics = buildIcs(calendarEvents)
+    const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "flight-schedule.ics"
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
 
   const swapAirports = () => {
@@ -398,9 +443,18 @@ export default function App() {
       </div>
 
       <div className="bg-background/95 fixed inset-x-0 bottom-0 border-t p-2 backdrop-blur">
-        <div className="mx-auto max-w-md">
-          <Button className="w-full" onClick={handleCopy}>
+        <div className="mx-auto flex max-w-md gap-2">
+          <Button className="flex-1" onClick={handleCopy}>
             {copied ? "コピーしました" : "メッセージをコピー"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleAddToCalendar}
+            disabled={calendarEvents.length === 0}
+          >
+            <CalendarPlus />
+            カレンダーに登録
           </Button>
         </div>
       </div>
