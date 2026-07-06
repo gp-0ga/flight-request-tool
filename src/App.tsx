@@ -66,8 +66,45 @@ function nowIcsUtc(): string {
   return `${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}T${pad2(d.getUTCHours())}${pad2(d.getUTCMinutes())}${pad2(d.getUTCSeconds())}Z`
 }
 
+// RFC5545 3.3.11: バックスラッシュ→改行→カンマ→セミコロンの順でエスケープする
+// (先にバックスラッシュを処理しないと、後段で追加した"\"自体を二重エスケープしてしまう)
 function escapeIcsText(text: string): string {
-  return text.replace(/\\/g, "\\\\").replace(/,/g, "\\,").replace(/;/g, "\\;")
+  return text
+    .replace(/\\/g, "\\\\")
+    .replace(/\n/g, "\\n")
+    .replace(/,/g, "\\,")
+    .replace(/;/g, "\\;")
+}
+
+// RFC5545 3.1: コンテンツ行は75オクテット(バイト)を超えたら折り返す。
+// 日本語はUTF-8で1文字3バイトになるため、マルチバイト文字の途中で
+// 分割しないようバイト列を見ながら継続バイト(10xxxxxx)を避けて切る。
+function foldIcsLine(line: string): string {
+  const bytes = new TextEncoder().encode(line)
+  if (bytes.length <= 75) return line
+
+  const decoder = new TextDecoder()
+  const chunks: string[] = []
+  let start = 0
+  let limit = 75
+  while (start < bytes.length) {
+    let end = Math.min(start + limit, bytes.length)
+    while (end < bytes.length && (bytes[end] & 0xc0) === 0x80) {
+      end--
+    }
+    chunks.push(decoder.decode(bytes.slice(start, end)))
+    start = end
+    limit = 74 // 継続行は先頭に付与する1オクテットの空白を含めて75にする
+  }
+  return chunks.join("\r\n ")
+}
+
+function generateUid(flightNo: string, date: string): string {
+  const random =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return `${flightNo}-${date.replaceAll("-", "")}-${random}@flight-request-tool`
 }
 
 function isIOS(): boolean {
@@ -88,7 +125,13 @@ type CalendarEvent = {
 }
 
 function buildIcs(events: CalendarEvent[]): string {
-  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//flight-request-tool//JP", "CALSCALE:GREGORIAN"]
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//flight-request-tool//JP",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+  ]
   for (const event of events) {
     lines.push(
       "BEGIN:VEVENT",
@@ -102,7 +145,7 @@ function buildIcs(events: CalendarEvent[]): string {
     )
   }
   lines.push("END:VCALENDAR")
-  return lines.join("\r\n")
+  return lines.map(foldIcsLine).join("\r\n")
 }
 
 function LegPicker({
@@ -248,7 +291,7 @@ export default function App() {
     const outboundFlight = outboundFlights.find((f) => f.flightNo === outbound.flightNo)
     if (outboundFlight) {
       events.push({
-        uid: `${outboundFlight.flightNo}-${departureDate}@flight-request-tool`,
+        uid: generateUid(outboundFlight.flightNo, departureDate),
         summary: `${outboundFlight.flightNo} ${airportLabel(origin)}→${airportLabel(destination)}`,
         location: airportLabel(origin),
         date: departureDate,
@@ -260,7 +303,7 @@ export default function App() {
       const inboundFlight = inboundFlights.find((f) => f.flightNo === inbound.flightNo)
       if (inboundFlight) {
         events.push({
-          uid: `${inboundFlight.flightNo}-${returnDate}@flight-request-tool`,
+          uid: generateUid(inboundFlight.flightNo, returnDate),
           summary: `${inboundFlight.flightNo} ${airportLabel(destination)}→${airportLabel(origin)}`,
           location: airportLabel(destination),
           date: returnDate,
@@ -292,11 +335,15 @@ export default function App() {
     if (calendarEvents.length === 0) return
     const ics = buildIcs(calendarEvents)
 
-    // iOS SafariはBlob+download属性だと「ファイルに保存」に落ちてしまい
-    // カレンダー追加画面が出ない。data: URLへの遷移だとカレンダーの
-    // 追加プレビューが開くため、iOSだけこの経路にする。
+    // iOSはBlob+download属性だと「ファイルに保存」に落ちてしまい
+    // カレンダー追加画面が出ない。download属性を付けずBlob URLへ
+    // location.href遷移するとカレンダー追加プレビューが開くため、
+    // iOSだけこの経路にする(data: URLは確定操作が失敗する端末があった)。
     if (isIOS()) {
-      window.location.href = `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`
+      const blob = new Blob([ics], { type: "text/calendar;charset=utf-8;method=PUBLISH" })
+      const url = URL.createObjectURL(blob)
+      window.location.href = url
+      setTimeout(() => URL.revokeObjectURL(url), 60000)
       return
     }
 
