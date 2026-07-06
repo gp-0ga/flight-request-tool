@@ -284,7 +284,7 @@ export default function App() {
               </Button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div className="min-w-0 space-y-1">
                 <Label htmlFor="dep-date" className="text-xs">
                   出発日
@@ -294,7 +294,7 @@ export default function App() {
                   type="date"
                   value={departureDate}
                   onChange={(e) => setDepartureDate(e.target.value)}
-                  className="border-input bg-transparent flex h-8 w-full min-w-0 rounded-md border px-2 py-1 text-sm shadow-xs"
+                  className="border-input bg-transparent box-border flex h-8 w-full min-w-0 rounded-md border px-2 py-1 text-sm shadow-xs"
                 />
               </div>
               {tripType === "roundtrip" && (
@@ -307,7 +307,7 @@ export default function App() {
                     type="date"
                     value={returnDate}
                     onChange={(e) => setReturnDate(e.target.value)}
-                    className="border-input bg-transparent flex h-8 w-full min-w-0 rounded-md border px-2 py-1 text-sm shadow-xs"
+                    className="border-input bg-transparent box-border flex h-8 w-full min-w-0 rounded-md border px-2 py-1 text-sm shadow-xs"
                   />
                 </div>
               )}
