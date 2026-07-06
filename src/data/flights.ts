@@ -73,8 +73,8 @@ export const FLIGHTS: Record<string, Flight[]> = {
     { flightNo: "NH4867", dep: "18:40", arr: "19:30", period: "PM" },
   ],
   "MMB-CTS": [
-    { flightNo: "NH4862", dep: "10:50", arr: "11:40", period: "AM" },
     { flightNo: "JL2710", dep: "08:55", arr: "09:40", period: "AM" },
+    { flightNo: "NH4862", dep: "10:50", arr: "11:40", period: "AM" },
     { flightNo: "JL2714", dep: "13:55", arr: "14:40", period: "PM" },
     { flightNo: "NH4866", dep: "14:35", arr: "15:25", period: "PM" },
     { flightNo: "JL2718", dep: "17:25", arr: "18:10", period: "PM" },
@@ -111,6 +111,12 @@ export const FLIGHTS: Record<string, Flight[]> = {
   "OIR-HKD": [{ flightNo: "JL2792", dep: "12:45", arr: "13:15", period: "PM" }],
 }
 
+function timeToMinutes(time: string): number {
+  const [hours, minutes] = time.split(":").map(Number)
+  return hours * 60 + minutes
+}
+
 export function getFlights(origin: string, destination: string): Flight[] {
-  return FLIGHTS[`${origin}-${destination}`] ?? []
+  const flights = FLIGHTS[`${origin}-${destination}`] ?? []
+  return [...flights].sort((a, b) => timeToMinutes(a.dep) - timeToMinutes(b.dep))
 }
