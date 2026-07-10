@@ -1,32 +1,22 @@
-# React + TypeScript + Vite
+# 航空券予約依頼メッセージ作成ツール
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+北海道内の空港間を移動する出張の際、航空券予約依頼メッセージをTeams貼り付け用に作成する個人用ツール。出発地/目的地・往復or片道・日付・便を選ぶと依頼文が自動生成され、コピーやGoogleカレンダーへの一括登録ができる。
 
-Currently, two official plugins are available:
+**公開URL**: https://gp-0ga.github.io/flight-request-tool/
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 開発
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev      # 開発サーバー起動
+npm run build    # 本番ビルド(dist/に出力)
+npm run preview  # ビルド結果をローカルで確認
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## 技術構成
+
+Vite + React + TypeScript + Tailwind CSS + shadcn/ui。ルーターなしの単一ページSPA、バックエンドなし。
+
+## デプロイ
+
+`master`へpushすると GitHub Actions が自動的にビルド・GitHub Pagesへデプロイする。ブランチ運用・デプロイの詳細、実装上の注意点は [CLAUDE.md](CLAUDE.md) を参照。
