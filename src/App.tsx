@@ -411,10 +411,27 @@ export default function App() {
     setDestination(origin)
   }
 
+  const actionButtons = (
+    <>
+      <Button className="flex-1" onClick={handleCopy}>
+        {copied ? "コピーしました" : "メッセージをコピー"}
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={handleAddToCalendar}
+        disabled={calendarEvents.length === 0}
+      >
+        <CalendarPlus />
+        カレンダーに登録
+      </Button>
+    </>
+  )
+
   return (
     <div className="bg-background min-h-svh">
-      <div className="mx-auto max-w-md space-y-3 p-3 pb-20">
-        <header className="text-center">
+      <div className="mx-auto max-w-md space-y-3 p-3 pb-20 lg:max-w-4xl lg:grid lg:grid-cols-2 lg:items-stretch lg:gap-4 lg:space-y-0 lg:pb-3">
+        <header className="text-center lg:col-span-2">
           <h1 className="text-base font-bold">航空券予約依頼メッセージ作成</h1>
         </header>
 
@@ -640,33 +657,21 @@ export default function App() {
           </CardContent>
         </Card>
 
-        <Card className="gap-2 py-3">
+        <Card className="gap-2 py-3 lg:flex lg:h-full lg:flex-col">
           <CardHeader className="px-3">
             <CardTitle className="text-sm">メッセージプレビュー</CardTitle>
           </CardHeader>
-          <CardContent className="px-3">
-            <pre className="bg-muted whitespace-pre-wrap rounded-md p-2 text-sm">
+          <CardContent className="px-3 lg:flex lg:flex-1 lg:flex-col">
+            <pre className="bg-muted whitespace-pre-wrap rounded-md p-2 text-sm lg:flex-1">
               {message}
             </pre>
+            <div className="mt-3 hidden gap-2 lg:flex">{actionButtons}</div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="bg-background/95 fixed inset-x-0 bottom-0 border-t p-2 backdrop-blur">
-        <div className="mx-auto flex max-w-md gap-2">
-          <Button className="flex-1" onClick={handleCopy}>
-            {copied ? "コピーしました" : "メッセージをコピー"}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleAddToCalendar}
-            disabled={calendarEvents.length === 0}
-          >
-            <CalendarPlus />
-            カレンダーに登録
-          </Button>
-        </div>
+      <div className="bg-background/95 fixed inset-x-0 bottom-0 border-t p-2 backdrop-blur lg:hidden">
+        <div className="mx-auto flex max-w-md gap-2">{actionButtons}</div>
       </div>
     </div>
   )
