@@ -30,13 +30,26 @@ surge ./dist flight-request-tweaks.surge.sh
 
 Surgeはドメイン直下配信のため、GitHub Pages用の`base: '/flight-request-tool/'`のままビルドするとアセットが404になる。`--base=./`で一時的に相対パスビルドを作るのがポイント。`vite.config.ts`自体は変更・コミットしない。
 
-## カレンダー一括登録(.ics)の実装メモ
+## カレンダー一括登録の実装メモ
 
-選択済みの往路・復路便をまとめて1つの`.ics`としてダウンロードさせ、複数イベントを一括登録できるようにしている（[App.tsx](src/App.tsx)の`buildIcs`/`handleAddToCalendar`）。iOS Safari対応で以下の点が重要:
+選択済みの往路・復路便をまとめてカレンダーに登録できるようにしている（[App.tsx](src/App.tsx)の`handleAddToCalendar`）。端末によって配信方式を3つに分けている:
 
-- **Blob + `download`属性はiOSで「ファイルに保存」に落ちる。** カレンダー追加のプレビュー画面を出すには、`download`属性を付けずBlob URLへ`location.href`で遷移する必要がある(`type: 'text/calendar;charset=utf-8;method=PUBLISH'`)
-- **data: URLへのnavigateはChromiumではセキュリティ上ブロックされる**ため、この経路の動作確認は開発環境のブラウザでは完結せず、実機(iPhone Safari)での確認が必須
-- RFC5545準拠のため、`.ics`生成は以下を満たす: 改行は`\r\n`のみ、`METHOD:PUBLISH`を付与、`UID`は`crypto.randomUUID()`でグローバルに一意化、75オクテット超の行はUTF-8バイト境界を壊さず折り返す(日本語の便名・空港名が長くなりがちなため特に重要)
+- **Windows PC**: `.ics`をダウンロードしてもファイル関連付けがなくダブルクリックしても反応せず、仮に開けてもGoogleカレンダーではなくOS既定のアプリに渡るだけで登録に至らない。そのため`isWindows()`判定時は、選択済みの各便についてGoogleカレンダーのクイック追加リンク(`calendar.google.com/calendar/render?action=TEMPLATE...`、ローカル時刻+`ctz=Asia/Tokyo`)を`window.open`で新規タブとして直接開く(`buildGoogleCalendarUrl`)。ダウンロード・ファイル操作は発生しない
+- **iOS**: `.ics`を`buildIcs`で生成し、Blob URLへ`location.href`で遷移してカレンダー追加のプレビュー画面を出す。**Blob + `download`属性はiOSで「ファイルに保存」に落ちてしまいカレンダー追加画面が出ないため、`download`属性は付けない。** `data:` URLへのnavigateはChromiumではセキュリティ上ブロックされるため、この経路の動作確認は開発環境のブラウザでは完結せず実機(iPhone Safari)での確認が必須
+- **上記以外(Android等)**: `.ics`をBlobダウンロードするフォールバック(現状未検証・未対応、今後の課題)
+
+`.ics`はRFC5545準拠のため、改行は`\r\n`のみ、`METHOD:PUBLISH`を付与、`UID`は`crypto.randomUUID()`でグローバルに一意化、75オクテット超の行はUTF-8バイト境界を壊さず折り返す(日本語の便名・空港名が長くなりがちなため特に重要)。
+
+## 復路の空港を個別に変更できる機能
+
+往路と復路で使う空港が異なるケース(自宅近くに複数空港があり、便によって行き帰りで異なる方を使う等)に対応するため、復路の出発地/目的地は往路と独立して設定できる（[App.tsx](src/App.tsx)の`inboundAirports`state）。通常時(`inboundAirports === null`)は往路の反転(目的地→出発地)を自動で使い、UIも往路と同じ簡潔な表示のまま。「復路の空港を個別に変更」を押すと`inboundAirports`に値が入り、専用の出発地/目的地セレクトが展開される。一度個別設定すると、往路を後から変更しても連動しなくなる(独立した値として保持される)。「×」で閉じると`null`に戻り、通常の反転表示に戻る。
+
+## PC幅でのレイアウト
+
+`lg`ブレークポイント(1024px)未満はモバイル向けレイアウトのまま変更していない。`lg`以上では:
+
+- フォームとメッセージプレビューを2カラムで横並び表示し、右カラム(プレビュー)を左カラムと同じ高さまで伸ばして、コピー/カレンダー登録ボタンをプレビューカード下部に内包する(モバイル用の下部固定バーは`lg:hidden`で非表示にする)。ボタン列自体は`actionButtons`として1箇所で定義し、モバイル用の固定バーとPC用のカード内配置の両方で使い回している
+- コンテナ幅・文字サイズをモバイル比+25%にしている(`max-w-[70rem]`、各要素に`lg:text-[...]`)。Tailwindの`text-*`ユーティリティは常にルート基準の`rem`指定で祖先の`font-size`に連動しないため、コンテナに一括でfont-sizeを設定する方法は効かず、各テキスト要素に個別で`lg:text-[...]`を付与する必要がある
 
 ## モバイルレイアウトの注意点
 
