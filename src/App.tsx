@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { CalendarPlus } from "lucide-react"
+import { CalendarPlus, X } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -113,6 +113,29 @@ function isIOS(): boolean {
   // iPadOS 13+はUAがMacと同一になるため、タッチ対応で判別する
   const isIPadOS = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1
   return isAppleTouchDevice || isIPadOS
+}
+
+function isWindows(): boolean {
+  return /Windows/.test(navigator.userAgent)
+}
+
+// Googleカレンダーのクイック追加は日本時間のローカル時刻文字列+ctzパラメータを使う
+// (UTC変換した.ics用のtoIcsUtcとは別物)
+function toCalendarDateTime(date: string, time: string): string {
+  return `${date.replaceAll("-", "")}T${time.replace(":", "")}00`
+}
+
+function buildGoogleCalendarUrl(event: CalendarEvent): string {
+  const url = new URL("https://calendar.google.com/calendar/render")
+  url.searchParams.set("action", "TEMPLATE")
+  url.searchParams.set("text", event.summary)
+  url.searchParams.set(
+    "dates",
+    `${toCalendarDateTime(event.date, event.dep)}/${toCalendarDateTime(event.date, event.arr)}`
+  )
+  url.searchParams.set("location", event.location)
+  url.searchParams.set("ctz", "Asia/Tokyo")
+  return url.toString()
 }
 
 type CalendarEvent = {
@@ -234,14 +257,23 @@ export default function App() {
   const [outbound, setOutbound] = useState<LegState>(emptyLeg)
   const [inbound, setInbound] = useState<LegState>(emptyLeg)
   const [copied, setCopied] = useState(false)
+  // nullの間は復路の空港を往路から自動で反転させる(目的地→出発地)。
+  // 個別に変更されたら独立した値を持ち、往路を変えても連動しなくなる。
+  const [inboundAirports, setInboundAirports] = useState<{
+    origin: string
+    destination: string
+  } | null>(null)
+
+  const inboundOrigin = inboundAirports?.origin ?? destination
+  const inboundDestination = inboundAirports?.destination ?? origin
 
   const outboundFlights = useMemo(
     () => getFlights(origin, destination),
     [origin, destination]
   )
   const inboundFlights = useMemo(
-    () => getFlights(destination, origin),
-    [origin, destination]
+    () => getFlights(inboundOrigin, inboundDestination),
+    [inboundOrigin, inboundDestination]
   )
 
   const message = useMemo(() => {
@@ -264,7 +296,7 @@ export default function App() {
       lines.push("")
       lines.push("【復路】")
       lines.push(
-        `${formatDateJp(returnDate)} ${airportLabel(destination)} → ${airportLabel(origin)}`
+        `${formatDateJp(returnDate)} ${airportLabel(inboundOrigin)} → ${airportLabel(inboundDestination)}`
       )
       if (inboundFlights.length === 0) {
         lines.push("該当便が見つかりません。事務担当に直接お問い合わせください。")
@@ -280,6 +312,8 @@ export default function App() {
     returnDate,
     origin,
     destination,
+    inboundOrigin,
+    inboundDestination,
     outbound,
     inbound,
     outboundFlights,
@@ -304,8 +338,8 @@ export default function App() {
       if (inboundFlight) {
         events.push({
           uid: generateUid(inboundFlight.flightNo, returnDate),
-          summary: `${inboundFlight.flightNo} ${airportLabel(destination)}→${airportLabel(origin)}`,
-          location: airportLabel(destination),
+          summary: `${inboundFlight.flightNo} ${airportLabel(inboundOrigin)}→${airportLabel(inboundDestination)}`,
+          location: airportLabel(inboundOrigin),
           date: returnDate,
           dep: inboundFlight.dep,
           arr: inboundFlight.arr,
@@ -319,6 +353,8 @@ export default function App() {
     returnDate,
     origin,
     destination,
+    inboundOrigin,
+    inboundDestination,
     outbound,
     inbound,
     outboundFlights,
@@ -333,6 +369,18 @@ export default function App() {
 
   const handleAddToCalendar = () => {
     if (calendarEvents.length === 0) return
+
+    // Windows PCでは.icsをダウンロードしてもファイル関連付けがなく
+    // ダブルクリックしても何も起きない上に、開けたとしてもGoogle
+    // カレンダーではなくOS既定のカレンダーアプリに渡るだけなので、
+    // Googleカレンダーのクイック追加をイベントごとに新規タブで開く。
+    if (isWindows()) {
+      calendarEvents.forEach((event) => {
+        window.open(buildGoogleCalendarUrl(event), "_blank", "noopener,noreferrer")
+      })
+      return
+    }
+
     const ics = buildIcs(calendarEvents)
 
     // iOSはBlob+download属性だと「ファイルに保存」に落ちてしまい
@@ -480,15 +528,113 @@ export default function App() {
                 onChange={setOutbound}
               />
               {tripType === "roundtrip" && (
-                <LegPicker
-                  idPrefix="inbound"
-                  title="復路"
-                  date={returnDate}
-                  origin={destination}
-                  destination={origin}
-                  leg={inbound}
-                  onChange={setInbound}
-                />
+                <>
+                  {inboundAirports ? (
+                    <div className="space-y-2 rounded-md border p-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-muted-foreground text-xs">復路の空港</p>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-6"
+                          onClick={() => setInboundAirports(null)}
+                          aria-label="復路の個別設定を閉じる"
+                        >
+                          <X className="size-3.5" />
+                        </Button>
+                      </div>
+                      <div className="flex items-end gap-2">
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <Label className="text-xs" htmlFor="inbound-origin-select">
+                            出発地
+                          </Label>
+                          <Select
+                            value={inboundAirports.origin}
+                            onValueChange={(v) =>
+                              setInboundAirports({ ...inboundAirports, origin: v })
+                            }
+                          >
+                            <SelectTrigger
+                              id="inbound-origin-select"
+                              className="w-full min-w-0"
+                              size="sm"
+                            >
+                              <SelectValue className="truncate" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {AIRPORTS.map((a) => (
+                                <SelectItem key={a.code} value={a.code}>
+                                  {a.name}({a.code})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="size-8"
+                          onClick={() =>
+                            setInboundAirports({
+                              origin: inboundAirports.destination,
+                              destination: inboundAirports.origin,
+                            })
+                          }
+                          aria-label="復路の出発地と目的地を入れ替え"
+                        >
+                          ⇄
+                        </Button>
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <Label className="text-xs" htmlFor="inbound-destination-select">
+                            目的地
+                          </Label>
+                          <Select
+                            value={inboundAirports.destination}
+                            onValueChange={(v) =>
+                              setInboundAirports({ ...inboundAirports, destination: v })
+                            }
+                          >
+                            <SelectTrigger
+                              id="inbound-destination-select"
+                              className="w-full min-w-0"
+                              size="sm"
+                            >
+                              <SelectValue className="truncate" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {AIRPORTS.map((a) => (
+                                <SelectItem key={a.code} value={a.code}>
+                                  {a.name}({a.code})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setInboundAirports({ origin: destination, destination: origin })
+                      }
+                      className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs"
+                    >
+                      復路の空港を個別に変更
+                    </button>
+                  )}
+                  <LegPicker
+                    idPrefix="inbound"
+                    title="復路"
+                    date={returnDate}
+                    origin={inboundOrigin}
+                    destination={inboundDestination}
+                    leg={inbound}
+                    onChange={setInbound}
+                  />
+                </>
               )}
             </div>
           </CardContent>
