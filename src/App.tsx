@@ -199,14 +199,14 @@ function LegPicker({
   return (
     <div className="space-y-2">
       <div>
-        <p className="text-sm font-semibold">{title}</p>
-        <span className="text-muted-foreground text-xs">
+        <p className="text-sm font-semibold lg:text-[1.09375rem]">{title}</p>
+        <span className="text-muted-foreground text-xs lg:text-[0.9375rem]">
           {formatDateJp(date)} {airportLabel(origin)} → {airportLabel(destination)}
         </span>
       </div>
 
       {allFlights.length === 0 ? (
-        <p className="text-destructive text-sm">
+        <p className="text-destructive text-sm lg:text-[1.09375rem]">
           該当便が見つかりません。事務担当に直接お問い合わせください。
         </p>
       ) : (
@@ -217,6 +217,7 @@ function LegPicker({
                 key={p}
                 type="button"
                 size="sm"
+                className="lg:text-base"
                 variant={leg.period === p ? "default" : "outline"}
                 onClick={() => onChange({ ...leg, period: p })}
               >
@@ -228,14 +229,14 @@ function LegPicker({
             value={leg.flightNo}
             onValueChange={(v) => onChange({ ...leg, flightNo: v })}
           >
-            <SelectTrigger id={`${idPrefix}-flight`} className="w-full min-w-0">
+            <SelectTrigger id={`${idPrefix}-flight`} className="w-full min-w-0 lg:text-[1.09375rem]">
               <SelectValue placeholder="便を選択" />
             </SelectTrigger>
             <SelectContent>
               {flights.map((f) => (
                 <SelectItem key={f.flightNo} value={f.flightNo}>
                   {f.flightNo} {f.dep}→{f.arr}
-                  <Badge variant="secondary" className="ml-2">
+                  <Badge variant="secondary" className="ml-2 lg:text-[0.9375rem]">
                     {f.period === "AM" ? "午前" : "午後"}
                   </Badge>
                 </SelectItem>
@@ -413,12 +414,13 @@ export default function App() {
 
   const actionButtons = (
     <>
-      <Button className="flex-1" onClick={handleCopy}>
+      <Button className="flex-1 lg:text-[1.09375rem]" onClick={handleCopy}>
         {copied ? "コピーしました" : "メッセージをコピー"}
       </Button>
       <Button
         type="button"
         variant="outline"
+        className="lg:text-[1.09375rem]"
         onClick={handleAddToCalendar}
         disabled={calendarEvents.length === 0}
       >
@@ -432,7 +434,7 @@ export default function App() {
     <div className="bg-background min-h-svh">
       <div className="mx-auto max-w-md space-y-3 p-3 pb-20 lg:max-w-[70rem] lg:grid lg:grid-cols-2 lg:items-stretch lg:gap-4 lg:space-y-0 lg:pb-3">
         <header className="text-center lg:col-span-2">
-          <h1 className="text-base font-bold">航空券予約依頼メッセージ作成</h1>
+          <h1 className="text-base font-bold lg:text-xl">航空券予約依頼メッセージ作成</h1>
         </header>
 
         <Card className="gap-3 py-3">
@@ -440,7 +442,7 @@ export default function App() {
             <div className="flex gap-2">
               <Button
                 type="button"
-                className="flex-1"
+                className="flex-1 lg:text-base"
                 size="sm"
                 variant={tripType === "roundtrip" ? "default" : "outline"}
                 onClick={() => setTripType("roundtrip")}
@@ -449,7 +451,7 @@ export default function App() {
               </Button>
               <Button
                 type="button"
-                className="flex-1"
+                className="flex-1 lg:text-base"
                 size="sm"
                 variant={tripType === "oneway" ? "default" : "outline"}
                 onClick={() => setTripType("oneway")}
@@ -460,7 +462,7 @@ export default function App() {
 
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div className="min-w-0 space-y-1">
-                <Label htmlFor="dep-date" className="text-xs">
+                <Label htmlFor="dep-date" className="text-xs lg:text-[0.9375rem]">
                   出発日
                 </Label>
                 <input
@@ -468,12 +470,12 @@ export default function App() {
                   type="date"
                   value={departureDate}
                   onChange={(e) => setDepartureDate(e.target.value)}
-                  className="border-input bg-transparent box-border flex h-8 w-full min-w-0 rounded-md border px-2 py-1 text-sm shadow-xs"
+                  className="border-input bg-transparent box-border flex h-8 w-full min-w-0 rounded-md border px-2 py-1 text-sm shadow-xs lg:text-[1.09375rem]"
                 />
               </div>
               {tripType === "roundtrip" && (
                 <div className="min-w-0 space-y-1">
-                  <Label htmlFor="ret-date" className="text-xs">
+                  <Label htmlFor="ret-date" className="text-xs lg:text-[0.9375rem]">
                     帰着日
                   </Label>
                   <input
@@ -481,7 +483,7 @@ export default function App() {
                     type="date"
                     value={returnDate}
                     onChange={(e) => setReturnDate(e.target.value)}
-                    className="border-input bg-transparent box-border flex h-8 w-full min-w-0 rounded-md border px-2 py-1 text-sm shadow-xs"
+                    className="border-input bg-transparent box-border flex h-8 w-full min-w-0 rounded-md border px-2 py-1 text-sm shadow-xs lg:text-[1.09375rem]"
                   />
                 </div>
               )}
@@ -489,11 +491,15 @@ export default function App() {
 
             <div className="flex items-end gap-2">
               <div className="min-w-0 flex-1 space-y-1">
-                <Label className="text-xs" htmlFor="origin-select">
+                <Label className="text-xs lg:text-[0.9375rem]" htmlFor="origin-select">
                   出発地
                 </Label>
                 <Select value={origin} onValueChange={setOrigin}>
-                  <SelectTrigger id="origin-select" className="w-full min-w-0" size="sm">
+                  <SelectTrigger
+                    id="origin-select"
+                    className="w-full min-w-0 lg:text-[1.09375rem]"
+                    size="sm"
+                  >
                     <SelectValue className="truncate" />
                   </SelectTrigger>
                   <SelectContent>
@@ -509,18 +515,22 @@ export default function App() {
                 type="button"
                 variant="outline"
                 size="icon"
-                className="size-8"
+                className="size-8 lg:text-base"
                 onClick={swapAirports}
                 aria-label="出発地と目的地を入れ替え"
               >
                 ⇄
               </Button>
               <div className="min-w-0 flex-1 space-y-1">
-                <Label className="text-xs" htmlFor="destination-select">
+                <Label className="text-xs lg:text-[0.9375rem]" htmlFor="destination-select">
                   目的地
                 </Label>
                 <Select value={destination} onValueChange={setDestination}>
-                  <SelectTrigger id="destination-select" className="w-full min-w-0" size="sm">
+                  <SelectTrigger
+                    id="destination-select"
+                    className="w-full min-w-0 lg:text-[1.09375rem]"
+                    size="sm"
+                  >
                     <SelectValue className="truncate" />
                   </SelectTrigger>
                   <SelectContent>
@@ -549,7 +559,9 @@ export default function App() {
                   {inboundAirports ? (
                     <div className="space-y-2 rounded-md border p-2">
                       <div className="flex items-center justify-between">
-                        <p className="text-muted-foreground text-xs">復路の空港</p>
+                        <p className="text-muted-foreground text-xs lg:text-[0.9375rem]">
+                          復路の空港
+                        </p>
                         <Button
                           type="button"
                           variant="ghost"
@@ -563,7 +575,7 @@ export default function App() {
                       </div>
                       <div className="flex items-end gap-2">
                         <div className="min-w-0 flex-1 space-y-1">
-                          <Label className="text-xs" htmlFor="inbound-origin-select">
+                          <Label className="text-xs lg:text-[0.9375rem]" htmlFor="inbound-origin-select">
                             出発地
                           </Label>
                           <Select
@@ -574,7 +586,7 @@ export default function App() {
                           >
                             <SelectTrigger
                               id="inbound-origin-select"
-                              className="w-full min-w-0"
+                              className="w-full min-w-0 lg:text-[1.09375rem]"
                               size="sm"
                             >
                               <SelectValue className="truncate" />
@@ -592,7 +604,7 @@ export default function App() {
                           type="button"
                           variant="outline"
                           size="icon"
-                          className="size-8"
+                          className="size-8 lg:text-base"
                           onClick={() =>
                             setInboundAirports({
                               origin: inboundAirports.destination,
@@ -604,7 +616,7 @@ export default function App() {
                           ⇄
                         </Button>
                         <div className="min-w-0 flex-1 space-y-1">
-                          <Label className="text-xs" htmlFor="inbound-destination-select">
+                          <Label className="text-xs lg:text-[0.9375rem]" htmlFor="inbound-destination-select">
                             目的地
                           </Label>
                           <Select
@@ -615,7 +627,7 @@ export default function App() {
                           >
                             <SelectTrigger
                               id="inbound-destination-select"
-                              className="w-full min-w-0"
+                              className="w-full min-w-0 lg:text-[1.09375rem]"
                               size="sm"
                             >
                               <SelectValue className="truncate" />
@@ -637,7 +649,7 @@ export default function App() {
                       onClick={() =>
                         setInboundAirports({ origin: destination, destination: origin })
                       }
-                      className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs"
+                      className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs lg:text-[0.9375rem]"
                     >
                       復路の空港を個別に変更
                     </button>
@@ -659,10 +671,10 @@ export default function App() {
 
         <Card className="gap-2 py-3 lg:flex lg:h-full lg:flex-col">
           <CardHeader className="px-3">
-            <CardTitle className="text-sm">メッセージプレビュー</CardTitle>
+            <CardTitle className="text-sm lg:text-[1.09375rem]">メッセージプレビュー</CardTitle>
           </CardHeader>
           <CardContent className="px-3 lg:flex lg:flex-1 lg:flex-col">
-            <pre className="bg-muted whitespace-pre-wrap rounded-md p-2 text-sm lg:flex-1">
+            <pre className="bg-muted whitespace-pre-wrap rounded-md p-2 text-sm lg:flex-1 lg:text-[1.09375rem]">
               {message}
             </pre>
             <div className="mt-3 hidden gap-2 lg:flex">{actionButtons}</div>
