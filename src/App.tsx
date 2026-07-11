@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { CalendarPlus } from "lucide-react"
+import { CalendarPlus, X } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -115,6 +115,29 @@ function isIOS(): boolean {
   return isAppleTouchDevice || isIPadOS
 }
 
+function isWindows(): boolean {
+  return /Windows/.test(navigator.userAgent)
+}
+
+// Googleカレンダーのクイック追加は日本時間のローカル時刻文字列+ctzパラメータを使う
+// (UTC変換した.ics用のtoIcsUtcとは別物)
+function toCalendarDateTime(date: string, time: string): string {
+  return `${date.replaceAll("-", "")}T${time.replace(":", "")}00`
+}
+
+function buildGoogleCalendarUrl(event: CalendarEvent): string {
+  const url = new URL("https://calendar.google.com/calendar/render")
+  url.searchParams.set("action", "TEMPLATE")
+  url.searchParams.set("text", event.summary)
+  url.searchParams.set(
+    "dates",
+    `${toCalendarDateTime(event.date, event.dep)}/${toCalendarDateTime(event.date, event.arr)}`
+  )
+  url.searchParams.set("location", event.location)
+  url.searchParams.set("ctz", "Asia/Tokyo")
+  return url.toString()
+}
+
 type CalendarEvent = {
   uid: string
   summary: string
@@ -176,14 +199,14 @@ function LegPicker({
   return (
     <div className="space-y-2">
       <div>
-        <p className="text-sm font-semibold">{title}</p>
-        <span className="text-muted-foreground text-xs">
+        <p className="text-sm font-semibold lg:text-[1.09375rem]">{title}</p>
+        <span className="text-muted-foreground text-xs lg:text-[0.9375rem]">
           {formatDateJp(date)} {airportLabel(origin)} → {airportLabel(destination)}
         </span>
       </div>
 
       {allFlights.length === 0 ? (
-        <p className="text-destructive text-sm">
+        <p className="text-destructive text-sm lg:text-[1.09375rem]">
           該当便が見つかりません。事務担当に直接お問い合わせください。
         </p>
       ) : (
@@ -194,6 +217,7 @@ function LegPicker({
                 key={p}
                 type="button"
                 size="sm"
+                className="lg:text-base"
                 variant={leg.period === p ? "default" : "outline"}
                 onClick={() => onChange({ ...leg, period: p })}
               >
@@ -205,14 +229,14 @@ function LegPicker({
             value={leg.flightNo}
             onValueChange={(v) => onChange({ ...leg, flightNo: v })}
           >
-            <SelectTrigger id={`${idPrefix}-flight`} className="w-full min-w-0">
+            <SelectTrigger id={`${idPrefix}-flight`} className="w-full min-w-0 lg:text-[1.09375rem]">
               <SelectValue placeholder="便を選択" />
             </SelectTrigger>
             <SelectContent>
               {flights.map((f) => (
                 <SelectItem key={f.flightNo} value={f.flightNo}>
                   {f.flightNo} {f.dep}→{f.arr}
-                  <Badge variant="secondary" className="ml-2">
+                  <Badge variant="secondary" className="ml-2 lg:text-[0.9375rem]">
                     {f.period === "AM" ? "午前" : "午後"}
                   </Badge>
                 </SelectItem>
@@ -230,18 +254,27 @@ export default function App() {
   const [departureDate, setDepartureDate] = useState(todayString())
   const [returnDate, setReturnDate] = useState(todayString())
   const [origin, setOrigin] = useState("CTS")
-  const [destination, setDestination] = useState("HKD")
+  const [destination, setDestination] = useState("KUH")
   const [outbound, setOutbound] = useState<LegState>(emptyLeg)
   const [inbound, setInbound] = useState<LegState>(emptyLeg)
   const [copied, setCopied] = useState(false)
+  // nullの間は復路の空港を往路から自動で反転させる(目的地→出発地)。
+  // 個別に変更されたら独立した値を持ち、往路を変えても連動しなくなる。
+  const [inboundAirports, setInboundAirports] = useState<{
+    origin: string
+    destination: string
+  } | null>(null)
+
+  const inboundOrigin = inboundAirports?.origin ?? destination
+  const inboundDestination = inboundAirports?.destination ?? origin
 
   const outboundFlights = useMemo(
     () => getFlights(origin, destination),
     [origin, destination]
   )
   const inboundFlights = useMemo(
-    () => getFlights(destination, origin),
-    [origin, destination]
+    () => getFlights(inboundOrigin, inboundDestination),
+    [inboundOrigin, inboundDestination]
   )
 
   const message = useMemo(() => {
@@ -264,7 +297,7 @@ export default function App() {
       lines.push("")
       lines.push("【復路】")
       lines.push(
-        `${formatDateJp(returnDate)} ${airportLabel(destination)} → ${airportLabel(origin)}`
+        `${formatDateJp(returnDate)} ${airportLabel(inboundOrigin)} → ${airportLabel(inboundDestination)}`
       )
       if (inboundFlights.length === 0) {
         lines.push("該当便が見つかりません。事務担当に直接お問い合わせください。")
@@ -280,6 +313,8 @@ export default function App() {
     returnDate,
     origin,
     destination,
+    inboundOrigin,
+    inboundDestination,
     outbound,
     inbound,
     outboundFlights,
@@ -304,8 +339,8 @@ export default function App() {
       if (inboundFlight) {
         events.push({
           uid: generateUid(inboundFlight.flightNo, returnDate),
-          summary: `${inboundFlight.flightNo} ${airportLabel(destination)}→${airportLabel(origin)}`,
-          location: airportLabel(destination),
+          summary: `${inboundFlight.flightNo} ${airportLabel(inboundOrigin)}→${airportLabel(inboundDestination)}`,
+          location: airportLabel(inboundOrigin),
           date: returnDate,
           dep: inboundFlight.dep,
           arr: inboundFlight.arr,
@@ -319,6 +354,8 @@ export default function App() {
     returnDate,
     origin,
     destination,
+    inboundOrigin,
+    inboundDestination,
     outbound,
     inbound,
     outboundFlights,
@@ -333,6 +370,18 @@ export default function App() {
 
   const handleAddToCalendar = () => {
     if (calendarEvents.length === 0) return
+
+    // Windows PCでは.icsをダウンロードしてもファイル関連付けがなく
+    // ダブルクリックしても何も起きない上に、開けたとしてもGoogle
+    // カレンダーではなくOS既定のカレンダーアプリに渡るだけなので、
+    // Googleカレンダーのクイック追加をイベントごとに新規タブで開く。
+    if (isWindows()) {
+      calendarEvents.forEach((event) => {
+        window.open(buildGoogleCalendarUrl(event), "_blank", "noopener,noreferrer")
+      })
+      return
+    }
+
     const ics = buildIcs(calendarEvents)
 
     // iOSはBlob+download属性だと「ファイルに保存」に落ちてしまい
@@ -363,11 +412,29 @@ export default function App() {
     setDestination(origin)
   }
 
+  const actionButtons = (
+    <>
+      <Button className="flex-1 lg:text-[1.09375rem]" onClick={handleCopy}>
+        {copied ? "コピーしました" : "メッセージをコピー"}
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        className="lg:text-[1.09375rem]"
+        onClick={handleAddToCalendar}
+        disabled={calendarEvents.length === 0}
+      >
+        <CalendarPlus />
+        カレンダーに登録
+      </Button>
+    </>
+  )
+
   return (
     <div className="bg-background min-h-svh">
-      <div className="mx-auto max-w-md space-y-3 p-3 pb-20">
-        <header className="text-center">
-          <h1 className="text-base font-bold">航空券予約依頼メッセージ作成</h1>
+      <div className="mx-auto max-w-md space-y-3 p-3 pb-20 lg:max-w-[70rem] lg:grid lg:grid-cols-2 lg:items-stretch lg:gap-4 lg:space-y-0 lg:pb-3">
+        <header className="text-center lg:col-span-2">
+          <h1 className="text-base font-bold lg:text-xl">航空券予約依頼メッセージ作成</h1>
         </header>
 
         <Card className="gap-3 py-3">
@@ -375,7 +442,7 @@ export default function App() {
             <div className="flex gap-2">
               <Button
                 type="button"
-                className="flex-1"
+                className="flex-1 lg:text-base"
                 size="sm"
                 variant={tripType === "roundtrip" ? "default" : "outline"}
                 onClick={() => setTripType("roundtrip")}
@@ -384,7 +451,7 @@ export default function App() {
               </Button>
               <Button
                 type="button"
-                className="flex-1"
+                className="flex-1 lg:text-base"
                 size="sm"
                 variant={tripType === "oneway" ? "default" : "outline"}
                 onClick={() => setTripType("oneway")}
@@ -395,7 +462,7 @@ export default function App() {
 
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div className="min-w-0 space-y-1">
-                <Label htmlFor="dep-date" className="text-xs">
+                <Label htmlFor="dep-date" className="text-xs lg:text-[0.9375rem]">
                   出発日
                 </Label>
                 <input
@@ -403,12 +470,12 @@ export default function App() {
                   type="date"
                   value={departureDate}
                   onChange={(e) => setDepartureDate(e.target.value)}
-                  className="border-input bg-transparent box-border flex h-8 w-full min-w-0 rounded-md border px-2 py-1 text-sm shadow-xs"
+                  className="border-input bg-transparent box-border flex h-8 w-full min-w-0 rounded-md border px-2 py-1 text-sm shadow-xs lg:text-[1.09375rem]"
                 />
               </div>
               {tripType === "roundtrip" && (
                 <div className="min-w-0 space-y-1">
-                  <Label htmlFor="ret-date" className="text-xs">
+                  <Label htmlFor="ret-date" className="text-xs lg:text-[0.9375rem]">
                     帰着日
                   </Label>
                   <input
@@ -416,7 +483,7 @@ export default function App() {
                     type="date"
                     value={returnDate}
                     onChange={(e) => setReturnDate(e.target.value)}
-                    className="border-input bg-transparent box-border flex h-8 w-full min-w-0 rounded-md border px-2 py-1 text-sm shadow-xs"
+                    className="border-input bg-transparent box-border flex h-8 w-full min-w-0 rounded-md border px-2 py-1 text-sm shadow-xs lg:text-[1.09375rem]"
                   />
                 </div>
               )}
@@ -424,11 +491,15 @@ export default function App() {
 
             <div className="flex items-end gap-2">
               <div className="min-w-0 flex-1 space-y-1">
-                <Label className="text-xs" htmlFor="origin-select">
+                <Label className="text-xs lg:text-[0.9375rem]" htmlFor="origin-select">
                   出発地
                 </Label>
                 <Select value={origin} onValueChange={setOrigin}>
-                  <SelectTrigger id="origin-select" className="w-full min-w-0" size="sm">
+                  <SelectTrigger
+                    id="origin-select"
+                    className="w-full min-w-0 lg:text-[1.09375rem]"
+                    size="sm"
+                  >
                     <SelectValue className="truncate" />
                   </SelectTrigger>
                   <SelectContent>
@@ -444,18 +515,22 @@ export default function App() {
                 type="button"
                 variant="outline"
                 size="icon"
-                className="size-8"
+                className="size-8 lg:text-base"
                 onClick={swapAirports}
                 aria-label="出発地と目的地を入れ替え"
               >
                 ⇄
               </Button>
               <div className="min-w-0 flex-1 space-y-1">
-                <Label className="text-xs" htmlFor="destination-select">
+                <Label className="text-xs lg:text-[0.9375rem]" htmlFor="destination-select">
                   目的地
                 </Label>
                 <Select value={destination} onValueChange={setDestination}>
-                  <SelectTrigger id="destination-select" className="w-full min-w-0" size="sm">
+                  <SelectTrigger
+                    id="destination-select"
+                    className="w-full min-w-0 lg:text-[1.09375rem]"
+                    size="sm"
+                  >
                     <SelectValue className="truncate" />
                   </SelectTrigger>
                   <SelectContent>
@@ -480,47 +555,135 @@ export default function App() {
                 onChange={setOutbound}
               />
               {tripType === "roundtrip" && (
-                <LegPicker
-                  idPrefix="inbound"
-                  title="復路"
-                  date={returnDate}
-                  origin={destination}
-                  destination={origin}
-                  leg={inbound}
-                  onChange={setInbound}
-                />
+                <>
+                  {inboundAirports ? (
+                    <div className="space-y-2 rounded-md border p-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-muted-foreground text-xs lg:text-[0.9375rem]">
+                          復路の空港
+                        </p>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-6"
+                          onClick={() => setInboundAirports(null)}
+                          aria-label="復路の個別設定を閉じる"
+                        >
+                          <X className="size-3.5" />
+                        </Button>
+                      </div>
+                      <div className="flex items-end gap-2">
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <Label className="text-xs lg:text-[0.9375rem]" htmlFor="inbound-origin-select">
+                            出発地
+                          </Label>
+                          <Select
+                            value={inboundAirports.origin}
+                            onValueChange={(v) =>
+                              setInboundAirports({ ...inboundAirports, origin: v })
+                            }
+                          >
+                            <SelectTrigger
+                              id="inbound-origin-select"
+                              className="w-full min-w-0 lg:text-[1.09375rem]"
+                              size="sm"
+                            >
+                              <SelectValue className="truncate" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {AIRPORTS.map((a) => (
+                                <SelectItem key={a.code} value={a.code}>
+                                  {a.name}({a.code})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="size-8 lg:text-base"
+                          onClick={() =>
+                            setInboundAirports({
+                              origin: inboundAirports.destination,
+                              destination: inboundAirports.origin,
+                            })
+                          }
+                          aria-label="復路の出発地と目的地を入れ替え"
+                        >
+                          ⇄
+                        </Button>
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <Label className="text-xs lg:text-[0.9375rem]" htmlFor="inbound-destination-select">
+                            目的地
+                          </Label>
+                          <Select
+                            value={inboundAirports.destination}
+                            onValueChange={(v) =>
+                              setInboundAirports({ ...inboundAirports, destination: v })
+                            }
+                          >
+                            <SelectTrigger
+                              id="inbound-destination-select"
+                              className="w-full min-w-0 lg:text-[1.09375rem]"
+                              size="sm"
+                            >
+                              <SelectValue className="truncate" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {AIRPORTS.map((a) => (
+                                <SelectItem key={a.code} value={a.code}>
+                                  {a.name}({a.code})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setInboundAirports({ origin: destination, destination: origin })
+                      }
+                      className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs lg:text-[0.9375rem]"
+                    >
+                      復路の空港を個別に変更
+                    </button>
+                  )}
+                  <LegPicker
+                    idPrefix="inbound"
+                    title="復路"
+                    date={returnDate}
+                    origin={inboundOrigin}
+                    destination={inboundDestination}
+                    leg={inbound}
+                    onChange={setInbound}
+                  />
+                </>
               )}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="gap-2 py-3">
+        <Card className="gap-2 py-3 lg:flex lg:h-full lg:flex-col">
           <CardHeader className="px-3">
-            <CardTitle className="text-sm">メッセージプレビュー</CardTitle>
+            <CardTitle className="text-sm lg:text-[1.09375rem]">メッセージプレビュー</CardTitle>
           </CardHeader>
-          <CardContent className="px-3">
-            <pre className="bg-muted whitespace-pre-wrap rounded-md p-2 text-sm">
+          <CardContent className="px-3 lg:flex lg:flex-1 lg:flex-col">
+            <pre className="bg-muted whitespace-pre-wrap rounded-md p-2 text-sm lg:flex-1 lg:text-[1.09375rem]">
               {message}
             </pre>
+            <div className="mt-3 hidden gap-2 lg:flex">{actionButtons}</div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="bg-background/95 fixed inset-x-0 bottom-0 border-t p-2 backdrop-blur">
-        <div className="mx-auto flex max-w-md gap-2">
-          <Button className="flex-1" onClick={handleCopy}>
-            {copied ? "コピーしました" : "メッセージをコピー"}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleAddToCalendar}
-            disabled={calendarEvents.length === 0}
-          >
-            <CalendarPlus />
-            カレンダーに登録
-          </Button>
-        </div>
+      <div className="bg-background/95 fixed inset-x-0 bottom-0 border-t p-2 backdrop-blur lg:hidden">
+        <div className="mx-auto flex max-w-md gap-2">{actionButtons}</div>
       </div>
     </div>
   )
