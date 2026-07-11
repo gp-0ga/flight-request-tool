@@ -253,7 +253,7 @@ export default function App() {
   const [departureDate, setDepartureDate] = useState(todayString())
   const [returnDate, setReturnDate] = useState(todayString())
   const [origin, setOrigin] = useState("CTS")
-  const [destination, setDestination] = useState("HKD")
+  const [destination, setDestination] = useState("KUH")
   const [outbound, setOutbound] = useState<LegState>(emptyLeg)
   const [inbound, setInbound] = useState<LegState>(emptyLeg)
   const [copied, setCopied] = useState(false)
@@ -430,7 +430,7 @@ export default function App() {
 
   return (
     <div className="bg-background min-h-svh">
-      <div className="mx-auto max-w-md space-y-3 p-3 pb-20 lg:max-w-4xl lg:grid lg:grid-cols-2 lg:items-stretch lg:gap-4 lg:space-y-0 lg:pb-3">
+      <div className="mx-auto max-w-md space-y-3 p-3 pb-20 lg:max-w-[70rem] lg:grid lg:grid-cols-2 lg:items-stretch lg:gap-4 lg:space-y-0 lg:pb-3">
         <header className="text-center lg:col-span-2">
           <h1 className="text-base font-bold">航空券予約依頼メッセージ作成</h1>
         </header>
