@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useMemo, useState, type ReactNode } from "react"
 import { CalendarPlus, X } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -183,6 +183,7 @@ function LegPicker({
   destination,
   leg,
   onChange,
+  beforeControls,
 }: {
   idPrefix: string
   title: string
@@ -191,6 +192,7 @@ function LegPicker({
   destination: string
   leg: LegState
   onChange: (next: LegState) => void
+  beforeControls?: ReactNode
 }) {
   const allFlights = useMemo(
     () => getFlights(origin, destination),
@@ -208,6 +210,8 @@ function LegPicker({
           {formatDateJp(date)} {airportLabel(origin)} → {airportLabel(destination)}
         </span>
       </div>
+
+      {beforeControls}
 
       {allFlights.length === 0 ? (
         <p className="text-destructive text-sm lg:text-[1.09375rem]">
@@ -486,6 +490,113 @@ export default function App() {
     setDestination(origin)
   }
 
+  const inboundAirportControls = inboundAirports ? (
+    <div className="space-y-2 rounded-md border p-2">
+      <div className="flex items-center justify-between">
+        <p className="text-muted-foreground text-xs lg:text-[0.9375rem]">
+          復路の空港
+        </p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-6"
+          onClick={() => setInboundAirports(null)}
+          aria-label="復路の個別設定を閉じる"
+        >
+          <X className="size-3.5" />
+        </Button>
+      </div>
+      <div className="flex items-end gap-2">
+        <div className="min-w-0 flex-1 space-y-1">
+          <Label
+            className="text-xs lg:text-[0.9375rem]"
+            htmlFor="inbound-origin-select"
+          >
+            出発地
+          </Label>
+          <Select
+            value={inboundAirports.origin}
+            onValueChange={(value) =>
+              setInboundAirports({ ...inboundAirports, origin: value })
+            }
+          >
+            <SelectTrigger
+              id="inbound-origin-select"
+              className="w-full min-w-0 lg:text-[1.09375rem]"
+              size="sm"
+            >
+              <SelectValue className="truncate" />
+            </SelectTrigger>
+            <SelectContent>
+              {AIRPORTS.map((airport) => (
+                <SelectItem key={airport.code} value={airport.code}>
+                  {airport.name}({airport.code})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="size-8 lg:text-base"
+          onClick={() =>
+            setInboundAirports({
+              origin: inboundAirports.destination,
+              destination: inboundAirports.origin,
+            })
+          }
+          aria-label="復路の出発地と目的地を入れ替え"
+        >
+          ⇄
+        </Button>
+        <div className="min-w-0 flex-1 space-y-1">
+          <Label
+            className="text-xs lg:text-[0.9375rem]"
+            htmlFor="inbound-destination-select"
+          >
+            目的地
+          </Label>
+          <Select
+            value={inboundAirports.destination}
+            onValueChange={(value) =>
+              setInboundAirports({ ...inboundAirports, destination: value })
+            }
+          >
+            <SelectTrigger
+              id="inbound-destination-select"
+              className="w-full min-w-0 lg:text-[1.09375rem]"
+              size="sm"
+            >
+              <SelectValue className="truncate" />
+            </SelectTrigger>
+            <SelectContent>
+              {AIRPORTS.map((airport) => (
+                <SelectItem key={airport.code} value={airport.code}>
+                  {airport.name}({airport.code})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    </div>
+  ) : (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="w-full justify-start lg:text-[0.9375rem]"
+      onClick={() =>
+        setInboundAirports({ origin: destination, destination: origin })
+      }
+    >
+      復路の空港を個別に変更
+    </Button>
+  )
+
   const actionButtons = (
     <>
       <Button className="flex-1 lg:text-[1.09375rem]" onClick={handleCopy}>
@@ -618,17 +729,18 @@ export default function App() {
               </div>
             </div>
 
-            <div className="space-y-3 border-t pt-3">
-              <LegPicker
-                idPrefix="outbound"
-                title="往路"
-                date={departureDate}
-                origin={origin}
-                destination={destination}
-                leg={outbound}
-                onChange={setOutbound}
-              />
-              {outboundBackup ? (
+            <div className="space-y-4 border-t pt-3">
+              <div className="space-y-3">
+                <LegPicker
+                  idPrefix="outbound"
+                  title="往路"
+                  date={departureDate}
+                  origin={origin}
+                  destination={destination}
+                  leg={outbound}
+                  onChange={setOutbound}
+                />
+                {outboundBackup ? (
                   <div className="bg-muted/50 space-y-3 rounded-md border border-dashed border-foreground/25 p-3 shadow-sm">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-semibold lg:text-[1.09375rem]">
@@ -695,116 +807,17 @@ export default function App() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="lg:text-[0.9375rem]"
+                    className="w-full justify-start lg:text-[0.9375rem]"
                     onClick={() =>
                       setOutboundBackup({ ...emptyLeg, airport: origin })
                     }
                   >
-                    予備便を追加
+                    往路の予備便を追加
                   </Button>
                 )}
+              </div>
               {tripType === "roundtrip" && (
-                <>
-                  {inboundAirports ? (
-                    <div className="space-y-2 rounded-md border p-2">
-                      <div className="flex items-center justify-between">
-                        <p className="text-muted-foreground text-xs lg:text-[0.9375rem]">
-                          復路の空港
-                        </p>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="size-6"
-                          onClick={() => setInboundAirports(null)}
-                          aria-label="復路の個別設定を閉じる"
-                        >
-                          <X className="size-3.5" />
-                        </Button>
-                      </div>
-                      <div className="flex items-end gap-2">
-                        <div className="min-w-0 flex-1 space-y-1">
-                          <Label className="text-xs lg:text-[0.9375rem]" htmlFor="inbound-origin-select">
-                            出発地
-                          </Label>
-                          <Select
-                            value={inboundAirports.origin}
-                            onValueChange={(v) =>
-                              setInboundAirports({ ...inboundAirports, origin: v })
-                            }
-                          >
-                            <SelectTrigger
-                              id="inbound-origin-select"
-                              className="w-full min-w-0 lg:text-[1.09375rem]"
-                              size="sm"
-                            >
-                              <SelectValue className="truncate" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {AIRPORTS.map((a) => (
-                                <SelectItem key={a.code} value={a.code}>
-                                  {a.name}({a.code})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className="size-8 lg:text-base"
-                          onClick={() =>
-                            setInboundAirports({
-                              origin: inboundAirports.destination,
-                              destination: inboundAirports.origin,
-                            })
-                          }
-                          aria-label="復路の出発地と目的地を入れ替え"
-                        >
-                          ⇄
-                        </Button>
-                        <div className="min-w-0 flex-1 space-y-1">
-                          <Label className="text-xs lg:text-[0.9375rem]" htmlFor="inbound-destination-select">
-                            目的地
-                          </Label>
-                          <Select
-                            value={inboundAirports.destination}
-                            onValueChange={(v) =>
-                              setInboundAirports({ ...inboundAirports, destination: v })
-                            }
-                          >
-                            <SelectTrigger
-                              id="inbound-destination-select"
-                              className="w-full min-w-0 lg:text-[1.09375rem]"
-                              size="sm"
-                            >
-                              <SelectValue className="truncate" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {AIRPORTS.map((a) => (
-                                <SelectItem key={a.code} value={a.code}>
-                                  {a.name}({a.code})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="lg:text-[0.9375rem]"
-                      onClick={() =>
-                        setInboundAirports({ origin: destination, destination: origin })
-                      }
-                    >
-                      復路の空港を個別に変更
-                    </Button>
-                  )}
+                <div className="space-y-3 border-t pt-3">
                   <LegPicker
                     idPrefix="inbound"
                     title="復路"
@@ -813,6 +826,7 @@ export default function App() {
                     destination={inboundDestination}
                     leg={inbound}
                     onChange={setInbound}
+                    beforeControls={inboundAirportControls}
                   />
                   {inboundBackup ? (
                       <div className="bg-muted/50 space-y-3 rounded-md border border-dashed border-foreground/25 p-3 shadow-sm">
@@ -881,7 +895,7 @@ export default function App() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="lg:text-[0.9375rem]"
+                        className="w-full justify-start lg:text-[0.9375rem]"
                         onClick={() =>
                           setInboundBackup({
                             ...emptyLeg,
@@ -889,10 +903,10 @@ export default function App() {
                           })
                         }
                       >
-                        予備便を追加
+                        復路の予備便を追加
                       </Button>
                     )}
-                </>
+                </div>
               )}
             </div>
           </CardContent>
