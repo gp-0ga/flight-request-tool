@@ -644,15 +644,17 @@ export default function App() {
                       </div>
                     </div>
                   ) : (
-                    <button
+                    <Button
                       type="button"
+                      variant="outline"
+                      size="sm"
+                      className="lg:text-[0.9375rem]"
                       onClick={() =>
                         setInboundAirports({ origin: destination, destination: origin })
                       }
-                      className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs lg:text-[0.9375rem]"
                     >
                       復路の空港を個別に変更
-                    </button>
+                    </Button>
                   )}
                   <LegPicker
                     idPrefix="inbound"
