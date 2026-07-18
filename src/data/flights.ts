@@ -46,13 +46,21 @@ export const FLIGHTS: Record<string, Flight[]> = {
     { flightNo: "NH4874", dep: "14:35", arr: "15:20", period: "PM" },
     { flightNo: "NH4876", dep: "17:10", arr: "17:55", period: "PM" },
   ],
+  // 丘珠-釧路は毎日3便＋月〜木のみ運航の1便(JL2763/JL2764)の計4便。
+  // JL2763/JL2764は金・土・日・祝は運休(2026年7月に駅探で全曜日確認)。
+  // このツールは曜日での出し分けをしないため、便リストには載せるが
+  // 搭乗日によっては予約できない点に注意。
   "OKD-KUH": [
-    { flightNo: "JL2761", dep: "08:05", arr: "08:40", period: "AM" },
-    { flightNo: "JL2767", dep: "16:55", arr: "17:30", period: "PM" },
+    { flightNo: "JL2761", dep: "08:00", arr: "08:45", period: "AM" },
+    { flightNo: "JL2763", dep: "11:40", arr: "12:25", period: "AM" },
+    { flightNo: "JL2765", dep: "14:10", arr: "14:55", period: "PM" },
+    { flightNo: "JL2767", dep: "16:45", arr: "17:30", period: "PM" },
   ],
   "KUH-OKD": [
-    { flightNo: "JL2762", dep: "09:15", arr: "09:50", period: "AM" },
-    { flightNo: "JL2768", dep: "18:00", arr: "18:35", period: "PM" },
+    { flightNo: "JL2762", dep: "09:15", arr: "10:05", period: "AM" },
+    { flightNo: "JL2764", dep: "12:55", arr: "13:45", period: "PM" },
+    { flightNo: "JL2766", dep: "15:25", arr: "16:15", period: "PM" },
+    { flightNo: "JL2768", dep: "18:00", arr: "18:50", period: "PM" },
   ],
 
   "CTS-WKJ": [
