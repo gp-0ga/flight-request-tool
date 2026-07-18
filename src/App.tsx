@@ -21,6 +21,10 @@ type LegState = {
   flightNo: string
 }
 
+type BackupLegState = LegState & {
+  airport: string
+}
+
 const emptyLeg: LegState = { period: "ALL", flightNo: "" }
 
 function todayString(): string {
@@ -257,10 +261,9 @@ export default function App() {
   const [destination, setDestination] = useState("KUH")
   const [outbound, setOutbound] = useState<LegState>(emptyLeg)
   const [inbound, setInbound] = useState<LegState>(emptyLeg)
-  // nullの間は予備便なし。ボタンで追加すると空のLegStateが入り、
-  // 本便と同じ区間・同じ日付でもう一便選べるようになる。
-  const [outboundBackup, setOutboundBackup] = useState<LegState | null>(null)
-  const [inboundBackup, setInboundBackup] = useState<LegState | null>(null)
+  // 往路の予備便は出発空港、復路の予備便は到着空港を本便と別に設定できる。
+  const [outboundBackup, setOutboundBackup] = useState<BackupLegState | null>(null)
+  const [inboundBackup, setInboundBackup] = useState<BackupLegState | null>(null)
   const [copied, setCopied] = useState(false)
   // nullの間は復路の空港を往路から自動で反転させる(目的地→出発地)。
   // 個別に変更されたら独立した値を持ち、往路を変えても連動しなくなる。
@@ -271,6 +274,8 @@ export default function App() {
 
   const inboundOrigin = inboundAirports?.origin ?? destination
   const inboundDestination = inboundAirports?.destination ?? origin
+  const outboundBackupOrigin = outboundBackup?.airport ?? origin
+  const inboundBackupDestination = inboundBackup?.airport ?? inboundDestination
 
   const outboundFlights = useMemo(
     () => getFlights(origin, destination),
@@ -279,6 +284,14 @@ export default function App() {
   const inboundFlights = useMemo(
     () => getFlights(inboundOrigin, inboundDestination),
     [inboundOrigin, inboundDestination]
+  )
+  const outboundBackupFlights = useMemo(
+    () => getFlights(outboundBackupOrigin, destination),
+    [outboundBackupOrigin, destination]
+  )
+  const inboundBackupFlights = useMemo(
+    () => getFlights(inboundOrigin, inboundBackupDestination),
+    [inboundOrigin, inboundBackupDestination]
   )
 
   const message = useMemo(() => {
@@ -312,10 +325,14 @@ export default function App() {
 
     const backupLines: string[] = []
     if (outboundBackup?.flightNo) {
-      backupLines.push(`往路: ${flightLabel(outboundFlights, outboundBackup.flightNo)}`)
+      backupLines.push(
+        `往路: ${airportLabel(outboundBackupOrigin)} → ${airportLabel(destination)} ${flightLabel(outboundBackupFlights, outboundBackup.flightNo)}`
+      )
     }
     if (tripType === "roundtrip" && inboundBackup?.flightNo) {
-      backupLines.push(`復路: ${flightLabel(inboundFlights, inboundBackup.flightNo)}`)
+      backupLines.push(
+        `復路: ${airportLabel(inboundOrigin)} → ${airportLabel(inboundBackupDestination)} ${flightLabel(inboundBackupFlights, inboundBackup.flightNo)}`
+      )
     }
     if (backupLines.length > 0) {
       lines.push("")
@@ -332,12 +349,16 @@ export default function App() {
     destination,
     inboundOrigin,
     inboundDestination,
+    outboundBackupOrigin,
+    inboundBackupDestination,
     outbound,
     inbound,
     outboundBackup,
     inboundBackup,
     outboundFlights,
     inboundFlights,
+    outboundBackupFlights,
+    inboundBackupFlights,
   ])
 
   const calendarEvents = useMemo(() => {
@@ -366,27 +387,27 @@ export default function App() {
         })
       }
     }
-    const outboundBackupFlight = outboundFlights.find(
+    const outboundBackupFlight = outboundBackupFlights.find(
       (f) => f.flightNo === outboundBackup?.flightNo
     )
     if (outboundBackupFlight) {
       events.push({
         uid: generateUid(outboundBackupFlight.flightNo, departureDate),
-        summary: `(予備) ${outboundBackupFlight.flightNo} ${airportLabel(origin)}→${airportLabel(destination)}`,
-        location: airportLabel(origin),
+        summary: `(予備) ${outboundBackupFlight.flightNo} ${airportLabel(outboundBackupOrigin)}→${airportLabel(destination)}`,
+        location: airportLabel(outboundBackupOrigin),
         date: departureDate,
         dep: outboundBackupFlight.dep,
         arr: outboundBackupFlight.arr,
       })
     }
     if (tripType === "roundtrip") {
-      const inboundBackupFlight = inboundFlights.find(
+      const inboundBackupFlight = inboundBackupFlights.find(
         (f) => f.flightNo === inboundBackup?.flightNo
       )
       if (inboundBackupFlight) {
         events.push({
           uid: generateUid(inboundBackupFlight.flightNo, returnDate),
-          summary: `(予備) ${inboundBackupFlight.flightNo} ${airportLabel(inboundOrigin)}→${airportLabel(inboundDestination)}`,
+          summary: `(予備) ${inboundBackupFlight.flightNo} ${airportLabel(inboundOrigin)}→${airportLabel(inboundBackupDestination)}`,
           location: airportLabel(inboundOrigin),
           date: returnDate,
           dep: inboundBackupFlight.dep,
@@ -403,12 +424,16 @@ export default function App() {
     destination,
     inboundOrigin,
     inboundDestination,
+    outboundBackupOrigin,
+    inboundBackupDestination,
     outbound,
     inbound,
     outboundBackup,
     inboundBackup,
     outboundFlights,
     inboundFlights,
+    outboundBackupFlights,
+    inboundBackupFlights,
   ])
 
   const handleCopy = async () => {
@@ -603,11 +628,10 @@ export default function App() {
                 leg={outbound}
                 onChange={setOutbound}
               />
-              {outboundFlights.length > 0 &&
-                (outboundBackup ? (
-                  <div className="space-y-2 rounded-md border p-2">
+              {outboundBackup ? (
+                  <div className="bg-muted/50 space-y-3 rounded-md border border-dashed border-foreground/25 p-3 shadow-sm">
                     <div className="flex items-center justify-between">
-                      <p className="text-muted-foreground text-xs lg:text-[0.9375rem]">
+                      <p className="text-sm font-semibold lg:text-[1.09375rem]">
                         往路の予備便
                       </p>
                       <Button
@@ -621,14 +645,49 @@ export default function App() {
                         <X className="size-3.5" />
                       </Button>
                     </div>
+                    <div className="space-y-1">
+                      <Label
+                        className="text-xs lg:text-[0.9375rem]"
+                        htmlFor="outbound-backup-origin-select"
+                      >
+                        出発地
+                      </Label>
+                      <Select
+                        value={outboundBackup.airport}
+                        onValueChange={(airport) =>
+                          setOutboundBackup({
+                            ...outboundBackup,
+                            airport,
+                            flightNo: "",
+                          })
+                        }
+                      >
+                        <SelectTrigger
+                          id="outbound-backup-origin-select"
+                          className="w-full min-w-0 lg:text-[1.09375rem]"
+                          size="sm"
+                        >
+                          <SelectValue className="truncate" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {AIRPORTS.map((a) => (
+                            <SelectItem key={a.code} value={a.code}>
+                              {a.name}({a.code})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <LegPicker
                       idPrefix="outbound-backup"
                       title="予備便"
                       date={departureDate}
-                      origin={origin}
+                      origin={outboundBackupOrigin}
                       destination={destination}
                       leg={outboundBackup}
-                      onChange={setOutboundBackup}
+                      onChange={(next) =>
+                        setOutboundBackup({ ...outboundBackup, ...next })
+                      }
                     />
                   </div>
                 ) : (
@@ -637,11 +696,13 @@ export default function App() {
                     variant="outline"
                     size="sm"
                     className="lg:text-[0.9375rem]"
-                    onClick={() => setOutboundBackup(emptyLeg)}
+                    onClick={() =>
+                      setOutboundBackup({ ...emptyLeg, airport: origin })
+                    }
                   >
                     予備便を追加
                   </Button>
-                ))}
+                )}
               {tripType === "roundtrip" && (
                 <>
                   {inboundAirports ? (
@@ -753,11 +814,10 @@ export default function App() {
                     leg={inbound}
                     onChange={setInbound}
                   />
-                  {inboundFlights.length > 0 &&
-                    (inboundBackup ? (
-                      <div className="space-y-2 rounded-md border p-2">
+                  {inboundBackup ? (
+                      <div className="bg-muted/50 space-y-3 rounded-md border border-dashed border-foreground/25 p-3 shadow-sm">
                         <div className="flex items-center justify-between">
-                          <p className="text-muted-foreground text-xs lg:text-[0.9375rem]">
+                          <p className="text-sm font-semibold lg:text-[1.09375rem]">
                             復路の予備便
                           </p>
                           <Button
@@ -771,14 +831,49 @@ export default function App() {
                             <X className="size-3.5" />
                           </Button>
                         </div>
+                        <div className="space-y-1">
+                          <Label
+                            className="text-xs lg:text-[0.9375rem]"
+                            htmlFor="inbound-backup-destination-select"
+                          >
+                            目的地
+                          </Label>
+                          <Select
+                            value={inboundBackup.airport}
+                            onValueChange={(airport) =>
+                              setInboundBackup({
+                                ...inboundBackup,
+                                airport,
+                                flightNo: "",
+                              })
+                            }
+                          >
+                            <SelectTrigger
+                              id="inbound-backup-destination-select"
+                              className="w-full min-w-0 lg:text-[1.09375rem]"
+                              size="sm"
+                            >
+                              <SelectValue className="truncate" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {AIRPORTS.map((a) => (
+                                <SelectItem key={a.code} value={a.code}>
+                                  {a.name}({a.code})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                         <LegPicker
                           idPrefix="inbound-backup"
                           title="予備便"
                           date={returnDate}
                           origin={inboundOrigin}
-                          destination={inboundDestination}
+                          destination={inboundBackupDestination}
                           leg={inboundBackup}
-                          onChange={setInboundBackup}
+                          onChange={(next) =>
+                            setInboundBackup({ ...inboundBackup, ...next })
+                          }
                         />
                       </div>
                     ) : (
@@ -787,11 +882,16 @@ export default function App() {
                         variant="outline"
                         size="sm"
                         className="lg:text-[0.9375rem]"
-                        onClick={() => setInboundBackup(emptyLeg)}
+                        onClick={() =>
+                          setInboundBackup({
+                            ...emptyLeg,
+                            airport: inboundDestination,
+                          })
+                        }
                       >
                         予備便を追加
                       </Button>
-                    ))}
+                    )}
                 </>
               )}
             </div>
