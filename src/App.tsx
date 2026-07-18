@@ -257,6 +257,10 @@ export default function App() {
   const [destination, setDestination] = useState("KUH")
   const [outbound, setOutbound] = useState<LegState>(emptyLeg)
   const [inbound, setInbound] = useState<LegState>(emptyLeg)
+  // nullの間は予備便なし。ボタンで追加すると空のLegStateが入り、
+  // 本便と同じ区間・同じ日付でもう一便選べるようになる。
+  const [outboundBackup, setOutboundBackup] = useState<LegState | null>(null)
+  const [inboundBackup, setInboundBackup] = useState<LegState | null>(null)
   const [copied, setCopied] = useState(false)
   // nullの間は復路の空港を往路から自動で反転させる(目的地→出発地)。
   // 個別に変更されたら独立した値を持ち、往路を変えても連動しなくなる。
@@ -306,6 +310,19 @@ export default function App() {
       }
     }
 
+    const backupLines: string[] = []
+    if (outboundBackup?.flightNo) {
+      backupLines.push(`往路: ${flightLabel(outboundFlights, outboundBackup.flightNo)}`)
+    }
+    if (tripType === "roundtrip" && inboundBackup?.flightNo) {
+      backupLines.push(`復路: ${flightLabel(inboundFlights, inboundBackup.flightNo)}`)
+    }
+    if (backupLines.length > 0) {
+      lines.push("")
+      lines.push("【予備便】")
+      lines.push(...backupLines)
+    }
+
     return lines.join("\n")
   }, [
     tripType,
@@ -317,6 +334,8 @@ export default function App() {
     inboundDestination,
     outbound,
     inbound,
+    outboundBackup,
+    inboundBackup,
     outboundFlights,
     inboundFlights,
   ])
@@ -347,6 +366,34 @@ export default function App() {
         })
       }
     }
+    const outboundBackupFlight = outboundFlights.find(
+      (f) => f.flightNo === outboundBackup?.flightNo
+    )
+    if (outboundBackupFlight) {
+      events.push({
+        uid: generateUid(outboundBackupFlight.flightNo, departureDate),
+        summary: `(予備) ${outboundBackupFlight.flightNo} ${airportLabel(origin)}→${airportLabel(destination)}`,
+        location: airportLabel(origin),
+        date: departureDate,
+        dep: outboundBackupFlight.dep,
+        arr: outboundBackupFlight.arr,
+      })
+    }
+    if (tripType === "roundtrip") {
+      const inboundBackupFlight = inboundFlights.find(
+        (f) => f.flightNo === inboundBackup?.flightNo
+      )
+      if (inboundBackupFlight) {
+        events.push({
+          uid: generateUid(inboundBackupFlight.flightNo, returnDate),
+          summary: `(予備) ${inboundBackupFlight.flightNo} ${airportLabel(inboundOrigin)}→${airportLabel(inboundDestination)}`,
+          location: airportLabel(inboundOrigin),
+          date: returnDate,
+          dep: inboundBackupFlight.dep,
+          arr: inboundBackupFlight.arr,
+        })
+      }
+    }
     return events
   }, [
     tripType,
@@ -358,6 +405,8 @@ export default function App() {
     inboundDestination,
     outbound,
     inbound,
+    outboundBackup,
+    inboundBackup,
     outboundFlights,
     inboundFlights,
   ])
@@ -554,6 +603,45 @@ export default function App() {
                 leg={outbound}
                 onChange={setOutbound}
               />
+              {outboundFlights.length > 0 &&
+                (outboundBackup ? (
+                  <div className="space-y-2 rounded-md border p-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-muted-foreground text-xs lg:text-[0.9375rem]">
+                        往路の予備便
+                      </p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-6"
+                        onClick={() => setOutboundBackup(null)}
+                        aria-label="往路の予備便を削除"
+                      >
+                        <X className="size-3.5" />
+                      </Button>
+                    </div>
+                    <LegPicker
+                      idPrefix="outbound-backup"
+                      title="予備便"
+                      date={departureDate}
+                      origin={origin}
+                      destination={destination}
+                      leg={outboundBackup}
+                      onChange={setOutboundBackup}
+                    />
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="lg:text-[0.9375rem]"
+                    onClick={() => setOutboundBackup(emptyLeg)}
+                  >
+                    予備便を追加
+                  </Button>
+                ))}
               {tripType === "roundtrip" && (
                 <>
                   {inboundAirports ? (
@@ -665,6 +753,45 @@ export default function App() {
                     leg={inbound}
                     onChange={setInbound}
                   />
+                  {inboundFlights.length > 0 &&
+                    (inboundBackup ? (
+                      <div className="space-y-2 rounded-md border p-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-muted-foreground text-xs lg:text-[0.9375rem]">
+                            復路の予備便
+                          </p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-6"
+                            onClick={() => setInboundBackup(null)}
+                            aria-label="復路の予備便を削除"
+                          >
+                            <X className="size-3.5" />
+                          </Button>
+                        </div>
+                        <LegPicker
+                          idPrefix="inbound-backup"
+                          title="予備便"
+                          date={returnDate}
+                          origin={inboundOrigin}
+                          destination={inboundDestination}
+                          leg={inboundBackup}
+                          onChange={setInboundBackup}
+                        />
+                      </div>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="lg:text-[0.9375rem]"
+                        onClick={() => setInboundBackup(emptyLeg)}
+                      >
+                        予備便を追加
+                      </Button>
+                    ))}
                 </>
               )}
             </div>
