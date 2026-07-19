@@ -329,13 +329,22 @@ export default function App() {
 
     const backupLines: string[] = []
     if (outboundBackup?.flightNo) {
+      backupLines.push("往路:")
       backupLines.push(
-        `往路: ${airportLabel(outboundBackupOrigin)} → ${airportLabel(destination)} ${flightLabel(outboundBackupFlights, outboundBackup.flightNo)}`
+        `${formatDateJp(departureDate)} ${airportLabel(outboundBackupOrigin)} → ${airportLabel(destination)}`
+      )
+      backupLines.push(
+        flightLabel(outboundBackupFlights, outboundBackup.flightNo)
       )
     }
     if (tripType === "roundtrip" && inboundBackup?.flightNo) {
+      if (backupLines.length > 0) backupLines.push("")
+      backupLines.push("復路:")
       backupLines.push(
-        `復路: ${airportLabel(inboundOrigin)} → ${airportLabel(inboundBackupDestination)} ${flightLabel(inboundBackupFlights, inboundBackup.flightNo)}`
+        `${formatDateJp(returnDate)} ${airportLabel(inboundOrigin)} → ${airportLabel(inboundBackupDestination)}`
+      )
+      backupLines.push(
+        flightLabel(inboundBackupFlights, inboundBackup.flightNo)
       )
     }
     if (backupLines.length > 0) {
