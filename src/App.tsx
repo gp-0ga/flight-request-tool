@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react"
-import { CalendarPlus, MapPinPlus, Plane, Plus, X } from "lucide-react"
+import { CalendarPlus, Copy, MapPinPlus, Plane, Plus, X } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -35,6 +35,10 @@ type BackupLegState = LegState & {
 }
 
 const emptyLeg: LegState = { period: "ALL", flightNo: "" }
+const defaultOutboundLeg: LegState = { period: "AM", flightNo: "" }
+const defaultInboundLeg: LegState = { period: "PM", flightNo: "" }
+const dateInputClass =
+  "border-input bg-transparent box-border flex h-7 w-full min-w-0 rounded-md border px-2 py-1 text-sm shadow-xs lg:text-[1.09375rem] [&::-webkit-calendar-picker-indicator]:ml-auto [&::-webkit-calendar-picker-indicator]:mr-0"
 const secondaryActionButtonClass =
   "h-7 w-[10.625rem] gap-1.5 active:bg-muted lg:w-[12.25rem] lg:text-[0.9375rem]"
 
@@ -315,8 +319,8 @@ export default function App() {
   const [returnDate, setReturnDate] = useState(todayString())
   const [origin, setOrigin] = useState("CTS")
   const [destination, setDestination] = useState("KUH")
-  const [outbound, setOutbound] = useState<LegState>(emptyLeg)
-  const [inbound, setInbound] = useState<LegState>(emptyLeg)
+  const [outbound, setOutbound] = useState<LegState>(defaultOutboundLeg)
+  const [inbound, setInbound] = useState<LegState>(defaultInboundLeg)
   // 往路の予備便は出発空港、復路の予備便は到着空港を本便と別に設定できる。
   const [outboundBackup, setOutboundBackup] = useState<BackupLegState | null>(null)
   const [inboundBackup, setInboundBackup] = useState<BackupLegState | null>(null)
@@ -663,7 +667,8 @@ export default function App() {
 
   const actionButtons = (
     <>
-      <Button size="sm" className="flex-1 lg:text-[1.09375rem]" onClick={handleCopy}>
+      <Button size="sm" className="flex-1 gap-1.5 lg:text-[1.09375rem]" onClick={handleCopy}>
+        <Copy />
         {copied ? "コピーしました" : "メッセージをコピー"}
       </Button>
       <Button
@@ -684,7 +689,10 @@ export default function App() {
     <div className="bg-background min-h-svh">
       <div className="mx-auto max-w-md space-y-3 p-3 pb-20 lg:max-w-[70rem] lg:grid lg:grid-cols-2 lg:items-stretch lg:gap-4 lg:space-y-0 lg:pb-3">
         <header className="text-center lg:col-span-2">
-          <h1 className="text-base font-bold lg:text-xl">航空券予約依頼メッセージ作成</h1>
+          <h1 className="inline-flex items-center justify-center gap-1.5 text-base font-bold lg:text-xl">
+            <Plane className="size-4 lg:size-5" />
+            航空券予約依頼メッセージ作成
+          </h1>
         </header>
 
         <div className="border-border bg-muted/50 text-muted-foreground rounded-md border px-3 py-2 text-xs leading-relaxed lg:col-span-2 lg:text-sm">
@@ -730,7 +738,7 @@ export default function App() {
                   type="date"
                   value={departureDate}
                   onChange={(e) => setDepartureDate(e.target.value)}
-                  className="border-input bg-transparent box-border flex h-7 w-full min-w-0 rounded-md border px-2 py-1 text-sm shadow-xs lg:text-[1.09375rem]"
+                  className={dateInputClass}
                 />
               </div>
               {tripType === "roundtrip" && (
@@ -743,7 +751,7 @@ export default function App() {
                     type="date"
                     value={returnDate}
                     onChange={(e) => setReturnDate(e.target.value)}
-                    className="border-input bg-transparent box-border flex h-7 w-full min-w-0 rounded-md border px-2 py-1 text-sm shadow-xs lg:text-[1.09375rem]"
+                    className={dateInputClass}
                   />
                 </div>
               )}
