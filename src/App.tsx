@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react"
-import { CalendarPlus, X } from "lucide-react"
+import { CalendarPlus, MapPinPlus, Plane, Plus, X } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -26,6 +26,17 @@ type BackupLegState = LegState & {
 }
 
 const emptyLeg: LegState = { period: "ALL", flightNo: "" }
+const secondaryActionButtonClass =
+  "h-7 w-[10.625rem] gap-1.5 active:bg-muted lg:w-[12.25rem] lg:text-[0.9375rem]"
+
+function PlanePlusIcon() {
+  return (
+    <span className="relative inline-flex size-4 shrink-0">
+      <Plane className="size-4" />
+      <Plus className="bg-background absolute -right-1 -bottom-1 size-2.5 rounded-full stroke-[3]" />
+    </span>
+  )
+}
 
 function todayString(): string {
   const d = new Date()
@@ -237,7 +248,7 @@ function LegPicker({
             value={leg.flightNo}
             onValueChange={(v) => onChange({ ...leg, flightNo: v })}
           >
-            <SelectTrigger id={`${idPrefix}-flight`} className="w-full min-w-0 lg:text-[1.09375rem]">
+            <SelectTrigger id={`${idPrefix}-flight`} className="w-full min-w-0 lg:text-[1.09375rem]" size="sm">
               <SelectValue placeholder="便を選択" />
             </SelectTrigger>
             <SelectContent>
@@ -348,6 +359,8 @@ export default function App() {
       )
     }
     if (backupLines.length > 0) {
+      lines.push("")
+      lines.push("予備便もあわせて予約をお願いします。")
       lines.push("")
       lines.push("【予備便】")
       lines.push(...backupLines)
@@ -548,9 +561,9 @@ export default function App() {
         </div>
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="icon"
-          className="size-8 lg:text-base"
+          className="size-7 shrink-0 lg:text-base"
           onClick={() =>
             setInboundAirports({
               origin: inboundAirports.destination,
@@ -597,24 +610,26 @@ export default function App() {
       type="button"
       variant="outline"
       size="sm"
-      className="w-full justify-start lg:text-[0.9375rem]"
+      className={secondaryActionButtonClass}
       onClick={() =>
         setInboundAirports({ origin: destination, destination: origin })
       }
     >
-      復路の空港を個別に変更
+      <MapPinPlus className="size-4" />
+      復路の空港を変更
     </Button>
   )
 
   const actionButtons = (
     <>
-      <Button className="flex-1 lg:text-[1.09375rem]" onClick={handleCopy}>
+      <Button size="sm" className="flex-1 lg:text-[1.09375rem]" onClick={handleCopy}>
         {copied ? "コピーしました" : "メッセージをコピー"}
       </Button>
       <Button
         type="button"
         variant="outline"
-        className="lg:text-[1.09375rem]"
+        size="sm"
+        className="gap-1.5 active:bg-muted lg:text-[1.09375rem]"
         onClick={handleAddToCalendar}
         disabled={calendarEvents.length === 0}
       >
@@ -664,7 +679,7 @@ export default function App() {
                   type="date"
                   value={departureDate}
                   onChange={(e) => setDepartureDate(e.target.value)}
-                  className="border-input bg-transparent box-border flex h-8 w-full min-w-0 rounded-md border px-2 py-1 text-sm shadow-xs lg:text-[1.09375rem]"
+                  className="border-input bg-transparent box-border flex h-7 w-full min-w-0 rounded-md border px-2 py-1 text-sm shadow-xs lg:text-[1.09375rem]"
                 />
               </div>
               {tripType === "roundtrip" && (
@@ -677,7 +692,7 @@ export default function App() {
                     type="date"
                     value={returnDate}
                     onChange={(e) => setReturnDate(e.target.value)}
-                    className="border-input bg-transparent box-border flex h-8 w-full min-w-0 rounded-md border px-2 py-1 text-sm shadow-xs lg:text-[1.09375rem]"
+                    className="border-input bg-transparent box-border flex h-7 w-full min-w-0 rounded-md border px-2 py-1 text-sm shadow-xs lg:text-[1.09375rem]"
                   />
                 </div>
               )}
@@ -707,9 +722,9 @@ export default function App() {
               </div>
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 size="icon"
-                className="size-8 lg:text-base"
+                className="size-7 shrink-0 lg:text-base"
                 onClick={swapAirports}
                 aria-label="出発地と目的地を入れ替え"
               >
@@ -816,11 +831,12 @@ export default function App() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="w-full justify-start lg:text-[0.9375rem]"
+                    className={secondaryActionButtonClass}
                     onClick={() =>
                       setOutboundBackup({ ...emptyLeg, airport: origin })
                     }
                   >
+                    <PlanePlusIcon />
                     往路の予備便を追加
                   </Button>
                 )}
@@ -904,7 +920,7 @@ export default function App() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="w-full justify-start lg:text-[0.9375rem]"
+                        className={secondaryActionButtonClass}
                         onClick={() =>
                           setInboundBackup({
                             ...emptyLeg,
@@ -912,6 +928,7 @@ export default function App() {
                           })
                         }
                       >
+                        <PlanePlusIcon />
                         復路の予備便を追加
                       </Button>
                     )}
