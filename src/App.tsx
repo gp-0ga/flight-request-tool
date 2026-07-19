@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react"
-import { CalendarPlus, MapPinPlus, Plane, Plus, X } from "lucide-react"
+import { CalendarPlus, Copy, MapPinPlus, Plane, Plus, X } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -12,7 +12,16 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { AIRPORTS, airportLabel } from "@/data/airports"
-import { getFlights, type Flight, type Period } from "@/data/flights"
+import {
+  SCHEDULE_LAST_VERIFIED,
+  SCHEDULE_VALID_FROM,
+  SCHEDULE_VALID_TO,
+  getFlights,
+  getFlightsForDate,
+  getScheduleDateStatus,
+  type Flight,
+  type Period,
+} from "@/data/flights"
 
 type TripType = "roundtrip" | "oneway"
 
@@ -26,6 +35,10 @@ type BackupLegState = LegState & {
 }
 
 const emptyLeg: LegState = { period: "ALL", flightNo: "" }
+const defaultOutboundLeg: LegState = { period: "AM", flightNo: "" }
+const defaultInboundLeg: LegState = { period: "PM", flightNo: "" }
+const dateInputClass =
+  "border-input bg-transparent box-border flex h-7 w-full min-w-0 rounded-md border px-2 py-1 text-sm shadow-xs lg:text-[1.09375rem] [&::-webkit-calendar-picker-indicator]:ml-auto [&::-webkit-calendar-picker-indicator]:mr-0"
 const secondaryActionButtonClass =
   "h-7 w-[10.625rem] gap-1.5 active:bg-muted lg:w-[12.25rem] lg:text-[0.9375rem]"
 
@@ -60,6 +73,14 @@ function filterFlights(flights: Flight[], period: "ALL" | Period): Flight[] {
 function flightLabel(flights: Flight[], flightNo: string): string {
   const f = flights.find((x) => x.flightNo === flightNo)
   return f ? `${f.flightNo}(${f.dep}→${f.arr})` : ""
+}
+
+function noFlightMessage(date: string): string {
+  const status = getScheduleDateStatus(date)
+  if (status === "before" || status === "after") {
+    return "対応ダイヤ期間外です。航空会社公式サイトで便をご確認ください。"
+  }
+  return "選択日に運航する対象便が見つかりません。事務担当または航空会社へご確認ください。"
 }
 
 function pad2(n: number): string {
@@ -205,14 +226,20 @@ function LegPicker({
   onChange: (next: LegState) => void
   beforeControls?: ReactNode
 }) {
-  const allFlights = useMemo(
+  const routeFlights = useMemo(
     () => getFlights(origin, destination),
     [origin, destination]
+  )
+  const scheduleStatus = getScheduleDateStatus(date)
+  const allFlights = useMemo(
+    () => getFlightsForDate(origin, destination, date),
+    [origin, destination, date]
   )
   const flights = useMemo(
     () => filterFlights(allFlights, leg.period),
     [allFlights, leg.period]
   )
+  const selectedFlight = allFlights.find((flight) => flight.flightNo === leg.flightNo)
   return (
     <div className="space-y-2">
       <div>
@@ -224,9 +251,17 @@ function LegPicker({
 
       {beforeControls}
 
-      {allFlights.length === 0 ? (
+      {scheduleStatus === "before" || scheduleStatus === "after" ? (
+        <p className="text-destructive text-sm lg:text-[1.09375rem]">
+          対応ダイヤ期間外です。航空会社公式サイトで便をご確認ください。
+        </p>
+      ) : routeFlights.length === 0 ? (
         <p className="text-destructive text-sm lg:text-[1.09375rem]">
           該当便が見つかりません。事務担当に直接お問い合わせください。
+        </p>
+      ) : allFlights.length === 0 ? (
+        <p className="text-destructive text-sm lg:text-[1.09375rem]">
+          選択日に運航する対象便がありません。航空会社公式サイトでご確認ください。
         </p>
       ) : (
         <div className="space-y-2">
@@ -258,10 +293,20 @@ function LegPicker({
                   <Badge variant="secondary" className="ml-2 lg:text-[0.9375rem]">
                     {f.period === "AM" ? "午前" : "午後"}
                   </Badge>
+                  {f.operationNote && (
+                    <span className="text-muted-foreground ml-2 text-xs">
+                      {f.operationNote}
+                    </span>
+                  )}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          {selectedFlight?.operationNote && (
+            <p className="text-muted-foreground text-xs lg:text-[0.9375rem]">
+              {selectedFlight.flightNo}: {selectedFlight.operationNote}
+            </p>
+          )}
         </div>
       )}
     </div>
@@ -274,8 +319,8 @@ export default function App() {
   const [returnDate, setReturnDate] = useState(todayString())
   const [origin, setOrigin] = useState("CTS")
   const [destination, setDestination] = useState("KUH")
-  const [outbound, setOutbound] = useState<LegState>(emptyLeg)
-  const [inbound, setInbound] = useState<LegState>(emptyLeg)
+  const [outbound, setOutbound] = useState<LegState>(defaultOutboundLeg)
+  const [inbound, setInbound] = useState<LegState>(defaultInboundLeg)
   // 往路の予備便は出発空港、復路の予備便は到着空港を本便と別に設定できる。
   const [outboundBackup, setOutboundBackup] = useState<BackupLegState | null>(null)
   const [inboundBackup, setInboundBackup] = useState<BackupLegState | null>(null)
@@ -293,20 +338,20 @@ export default function App() {
   const inboundBackupDestination = inboundBackup?.airport ?? inboundDestination
 
   const outboundFlights = useMemo(
-    () => getFlights(origin, destination),
-    [origin, destination]
+    () => getFlightsForDate(origin, destination, departureDate),
+    [origin, destination, departureDate]
   )
   const inboundFlights = useMemo(
-    () => getFlights(inboundOrigin, inboundDestination),
-    [inboundOrigin, inboundDestination]
+    () => getFlightsForDate(inboundOrigin, inboundDestination, returnDate),
+    [inboundOrigin, inboundDestination, returnDate]
   )
   const outboundBackupFlights = useMemo(
-    () => getFlights(outboundBackupOrigin, destination),
-    [outboundBackupOrigin, destination]
+    () => getFlightsForDate(outboundBackupOrigin, destination, departureDate),
+    [outboundBackupOrigin, destination, departureDate]
   )
   const inboundBackupFlights = useMemo(
-    () => getFlights(inboundOrigin, inboundBackupDestination),
-    [inboundOrigin, inboundBackupDestination]
+    () => getFlightsForDate(inboundOrigin, inboundBackupDestination, returnDate),
+    [inboundOrigin, inboundBackupDestination, returnDate]
   )
 
   const message = useMemo(() => {
@@ -320,7 +365,7 @@ export default function App() {
       `${formatDateJp(departureDate)} ${airportLabel(origin)} → ${airportLabel(destination)}`
     )
     if (outboundFlights.length === 0) {
-      lines.push("該当便が見つかりません。事務担当に直接お問い合わせください。")
+      lines.push(noFlightMessage(departureDate))
     } else if (outbound.flightNo) {
       lines.push(flightLabel(outboundFlights, outbound.flightNo))
     }
@@ -332,7 +377,7 @@ export default function App() {
         `${formatDateJp(returnDate)} ${airportLabel(inboundOrigin)} → ${airportLabel(inboundDestination)}`
       )
       if (inboundFlights.length === 0) {
-        lines.push("該当便が見つかりません。事務担当に直接お問い合わせください。")
+        lines.push(noFlightMessage(returnDate))
       } else if (inbound.flightNo) {
         lines.push(flightLabel(inboundFlights, inbound.flightNo))
       }
@@ -622,7 +667,8 @@ export default function App() {
 
   const actionButtons = (
     <>
-      <Button size="sm" className="flex-1 lg:text-[1.09375rem]" onClick={handleCopy}>
+      <Button size="sm" className="flex-1 gap-1.5 lg:text-[1.09375rem]" onClick={handleCopy}>
+        <Copy />
         {copied ? "コピーしました" : "メッセージをコピー"}
       </Button>
       <Button
@@ -643,8 +689,21 @@ export default function App() {
     <div className="bg-background min-h-svh">
       <div className="mx-auto max-w-md space-y-3 p-3 pb-20 lg:max-w-[70rem] lg:grid lg:grid-cols-2 lg:items-stretch lg:gap-4 lg:space-y-0 lg:pb-3">
         <header className="text-center lg:col-span-2">
-          <h1 className="text-base font-bold lg:text-xl">航空券予約依頼メッセージ作成</h1>
+          <h1 className="inline-flex items-center justify-center gap-1.5 text-base font-bold lg:text-xl">
+            <Plane className="size-4 lg:size-5" />
+            航空券予約依頼メッセージ作成
+          </h1>
         </header>
+
+        <div className="border-border bg-muted/50 text-muted-foreground rounded-md border px-3 py-2 text-xs leading-relaxed lg:col-span-2 lg:text-sm">
+          <p>
+            対応ダイヤ: {SCHEDULE_VALID_FROM.replaceAll("-", "/")}〜
+            {SCHEDULE_VALID_TO.replaceAll("-", "/")}（最終確認: {SCHEDULE_LAST_VERIFIED.replaceAll("-", "/")}）
+          </p>
+          <p>
+            個人制作の補助ツールです。運休・時刻変更の可能性があるため、予約前に航空会社公式サイトで必ずご確認ください。
+          </p>
+        </div>
 
         <Card className="gap-3 py-3">
           <CardContent className="space-y-3 px-3">
@@ -679,7 +738,7 @@ export default function App() {
                   type="date"
                   value={departureDate}
                   onChange={(e) => setDepartureDate(e.target.value)}
-                  className="border-input bg-transparent box-border flex h-7 w-full min-w-0 rounded-md border px-2 py-1 text-sm shadow-xs lg:text-[1.09375rem]"
+                  className={dateInputClass}
                 />
               </div>
               {tripType === "roundtrip" && (
@@ -692,7 +751,7 @@ export default function App() {
                     type="date"
                     value={returnDate}
                     onChange={(e) => setReturnDate(e.target.value)}
-                    className="border-input bg-transparent box-border flex h-7 w-full min-w-0 rounded-md border px-2 py-1 text-sm shadow-xs lg:text-[1.09375rem]"
+                    className={dateInputClass}
                   />
                 </div>
               )}

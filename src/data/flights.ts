@@ -5,7 +5,15 @@ export type Flight = {
   dep: string
   arr: string
   period: Period
+  operatingWeekdays?: number[]
+  operatingMonths?: number[]
+  nonOperatingDates?: string[]
+  operationNote?: string
 }
+
+export const SCHEDULE_LAST_VERIFIED = "2026-07-19"
+export const SCHEDULE_VALID_FROM = "2026-07-01"
+export const SCHEDULE_VALID_TO = "2026-10-24"
 
 // 実データに基づく時刻表（2026年7月時点で調査・確認）
 // キーは "出発地コード-到着地コード"
@@ -52,13 +60,43 @@ export const FLIGHTS: Record<string, Flight[]> = {
   // 搭乗日によっては予約できない点に注意。
   "OKD-KUH": [
     { flightNo: "JL2761", dep: "08:00", arr: "08:45", period: "AM" },
-    { flightNo: "JL2763", dep: "11:40", arr: "12:25", period: "AM" },
+    {
+      flightNo: "JL2763",
+      dep: "11:40",
+      arr: "12:25",
+      period: "AM",
+      operatingWeekdays: [1, 2, 3, 4],
+      nonOperatingDates: [
+        "2026-07-20",
+        "2026-08-11",
+        "2026-09-21",
+        "2026-09-22",
+        "2026-09-23",
+        "2026-10-12",
+      ],
+      operationNote: "月〜木のみ運航（祝日運休）",
+    },
     { flightNo: "JL2765", dep: "14:10", arr: "14:55", period: "PM" },
     { flightNo: "JL2767", dep: "16:45", arr: "17:30", period: "PM" },
   ],
   "KUH-OKD": [
     { flightNo: "JL2762", dep: "09:15", arr: "10:05", period: "AM" },
-    { flightNo: "JL2764", dep: "12:55", arr: "13:45", period: "PM" },
+    {
+      flightNo: "JL2764",
+      dep: "12:55",
+      arr: "13:45",
+      period: "PM",
+      operatingWeekdays: [1, 2, 3, 4],
+      nonOperatingDates: [
+        "2026-07-20",
+        "2026-08-11",
+        "2026-09-21",
+        "2026-09-22",
+        "2026-09-23",
+        "2026-10-12",
+      ],
+      operationNote: "月〜木のみ運航（祝日運休）",
+    },
     { flightNo: "JL2766", dep: "15:25", arr: "16:15", period: "PM" },
     { flightNo: "JL2768", dep: "18:00", arr: "18:50", period: "PM" },
   ],
@@ -98,8 +136,26 @@ export const FLIGHTS: Record<string, Flight[]> = {
   ],
 
   // 新千歳-利尻は夏季(7〜9月)のみの季節運航。丘珠-利尻は年間通期。
-  "CTS-RIS": [{ flightNo: "NH4929", dep: "12:30", arr: "13:25", period: "PM" }],
-  "RIS-CTS": [{ flightNo: "NH4930", dep: "14:05", arr: "14:55", period: "PM" }],
+  "CTS-RIS": [
+    {
+      flightNo: "NH4929",
+      dep: "12:30",
+      arr: "13:25",
+      period: "PM",
+      operatingMonths: [7, 8, 9],
+      operationNote: "7〜9月の季節運航",
+    },
+  ],
+  "RIS-CTS": [
+    {
+      flightNo: "NH4930",
+      dep: "14:05",
+      arr: "14:55",
+      period: "PM",
+      operatingMonths: [7, 8, 9],
+      operationNote: "7〜9月の季節運航",
+    },
+  ],
   "OKD-RIS": [{ flightNo: "JL2783", dep: "07:55", arr: "08:30", period: "AM" }],
   "RIS-OKD": [{ flightNo: "JL2788", dep: "16:25", arr: "17:05", period: "PM" }],
 
@@ -113,10 +169,46 @@ export const FLIGHTS: Record<string, Flight[]> = {
   ],
 
   // 奥尻線は季節運航・低頻度（金・日のみ）。丘珠線と函館線の2ルートがある。
-  "OKD-OIR": [{ flightNo: "JL2795", dep: "11:25", arr: "12:15", period: "AM" }],
-  "OIR-OKD": [{ flightNo: "JL2796", dep: "12:45", arr: "13:35", period: "PM" }],
-  "HKD-OIR": [{ flightNo: "JL2791", dep: "11:45", arr: "12:15", period: "AM" }],
-  "OIR-HKD": [{ flightNo: "JL2792", dep: "12:45", arr: "13:15", period: "PM" }],
+  "OKD-OIR": [
+    {
+      flightNo: "JL2795",
+      dep: "11:25",
+      arr: "12:15",
+      period: "AM",
+      operatingWeekdays: [0, 5],
+      operationNote: "金・日のみ運航",
+    },
+  ],
+  "OIR-OKD": [
+    {
+      flightNo: "JL2796",
+      dep: "12:45",
+      arr: "13:35",
+      period: "PM",
+      operatingWeekdays: [0, 5],
+      operationNote: "金・日のみ運航",
+    },
+  ],
+  "HKD-OIR": [
+    {
+      flightNo: "JL2791",
+      dep: "11:45",
+      arr: "12:15",
+      period: "AM",
+      operatingWeekdays: [0, 5],
+      operationNote: "金・日のみ運航",
+    },
+  ],
+  "OIR-HKD": [
+    {
+      flightNo: "JL2792",
+      dep: "12:45",
+      arr: "13:15",
+      period: "PM",
+      operatingWeekdays: [0, 5],
+      operationNote: "金・日のみ運航",
+    },
+  ],
 }
 
 function timeToMinutes(time: string): number {
@@ -127,4 +219,37 @@ function timeToMinutes(time: string): number {
 export function getFlights(origin: string, destination: string): Flight[] {
   const flights = FLIGHTS[`${origin}-${destination}`] ?? []
   return [...flights].sort((a, b) => timeToMinutes(a.dep) - timeToMinutes(b.dep))
+}
+
+export type ScheduleDateStatus = "supported" | "before" | "after" | "invalid"
+
+export function getScheduleDateStatus(date: string): ScheduleDateStatus {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "invalid"
+  if (date < SCHEDULE_VALID_FROM) return "before"
+  if (date > SCHEDULE_VALID_TO) return "after"
+  return "supported"
+}
+
+function isFlightOperatingOnDate(flight: Flight, date: string): boolean {
+  if (getScheduleDateStatus(date) !== "supported") return false
+
+  const parsedDate = new Date(`${date}T00:00:00`)
+  if (flight.operatingWeekdays && !flight.operatingWeekdays.includes(parsedDate.getDay())) {
+    return false
+  }
+  if (flight.operatingMonths && !flight.operatingMonths.includes(parsedDate.getMonth() + 1)) {
+    return false
+  }
+  if (flight.nonOperatingDates?.includes(date)) return false
+  return true
+}
+
+export function getFlightsForDate(
+  origin: string,
+  destination: string,
+  date: string
+): Flight[] {
+  return getFlights(origin, destination).filter((flight) =>
+    isFlightOperatingOnDate(flight, date)
+  )
 }
