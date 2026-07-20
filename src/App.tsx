@@ -191,6 +191,7 @@ function buildGoogleCalendarUrl(event: CalendarEvent): string {
 
 type CalendarEvent = {
   uid: string
+  label: string
   summary: string
   location: string
   date: string
@@ -340,6 +341,7 @@ export default function App() {
   const [outboundBackup, setOutboundBackup] = useState<BackupLegState | null>(null)
   const [inboundBackup, setInboundBackup] = useState<BackupLegState | null>(null)
   const [copied, setCopied] = useState(false)
+  const [showGoogleCalendarLinks, setShowGoogleCalendarLinks] = useState(false)
   const [seenScheduleVersion, setSeenScheduleVersion] = useState<string | null>(() =>
     localStorage.getItem(scheduleSeenStorageKey)
   )
@@ -477,6 +479,7 @@ export default function App() {
     if (outboundFlight) {
       events.push({
         uid: generateUid(outboundFlight.flightNo, departureDate),
+        label: "往路",
         summary: `${outboundFlight.flightNo} ${airportLabel(origin)}→${airportLabel(destination)}`,
         location: airportLabel(origin),
         date: departureDate,
@@ -489,6 +492,7 @@ export default function App() {
       if (inboundFlight) {
         events.push({
           uid: generateUid(inboundFlight.flightNo, returnDate),
+          label: "復路",
           summary: `${inboundFlight.flightNo} ${airportLabel(inboundOrigin)}→${airportLabel(inboundDestination)}`,
           location: airportLabel(inboundOrigin),
           date: returnDate,
@@ -503,6 +507,7 @@ export default function App() {
     if (outboundBackupFlight) {
       events.push({
         uid: generateUid(outboundBackupFlight.flightNo, departureDate),
+        label: "往路の予備便",
         summary: `(予備) ${outboundBackupFlight.flightNo} ${airportLabel(outboundBackupOrigin)}→${airportLabel(destination)}`,
         location: airportLabel(outboundBackupOrigin),
         date: departureDate,
@@ -517,6 +522,7 @@ export default function App() {
       if (inboundBackupFlight) {
         events.push({
           uid: generateUid(inboundBackupFlight.flightNo, returnDate),
+          label: "復路の予備便",
           summary: `(予備) ${inboundBackupFlight.flightNo} ${airportLabel(inboundOrigin)}→${airportLabel(inboundBackupDestination)}`,
           location: airportLabel(inboundOrigin),
           date: returnDate,
@@ -558,11 +564,15 @@ export default function App() {
     // Windows PCでは.icsをダウンロードしてもファイル関連付けがなく
     // ダブルクリックしても何も起きない上に、開けたとしてもGoogle
     // カレンダーではなくOS既定のカレンダーアプリに渡るだけなので、
-    // Googleカレンダーのクイック追加をイベントごとに新規タブで開く。
+    // Googleカレンダーのクイック追加を使う。ただし複数タブの自動起動は
+    // ブラウザにブロックされやすいため、複数便は登録リンクを一覧表示する。
     if (isWindows()) {
-      calendarEvents.forEach((event) => {
+      if (calendarEvents.length === 1) {
+        const event = calendarEvents[0]
         window.open(buildGoogleCalendarUrl(event), "_blank", "noopener,noreferrer")
-      })
+        return
+      }
+      setShowGoogleCalendarLinks(true)
       return
     }
 
@@ -590,6 +600,35 @@ export default function App() {
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
   }
+
+  const googleCalendarLinks = calendarEvents.map((event) => ({
+    ...event,
+    url: buildGoogleCalendarUrl(event),
+  }))
+
+  const calendarRegistrationLinks = showGoogleCalendarLinks ? (
+    <div className="border-border bg-muted/40 mt-3 rounded-md border p-2 text-xs lg:text-sm">
+      <p className="mb-2 text-muted-foreground">
+        Googleカレンダーは1便ずつ登録してください。
+      </p>
+      <div className="grid gap-1.5">
+        {googleCalendarLinks.map((event) => (
+          <a
+            key={`${event.label}-${event.summary}-${event.date}-${event.dep}`}
+            href={event.url}
+            target="_blank"
+            rel="noreferrer"
+            className="border-border bg-background inline-flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 active:bg-muted"
+          >
+            <span className="min-w-0 truncate">
+              {event.label}：{event.summary}（{event.dep}→{event.arr}）
+            </span>
+            <ExternalLink className="size-3.5 shrink-0" />
+          </a>
+        ))}
+      </div>
+    </div>
+  ) : null
 
   const swapAirports = () => {
     setOrigin(destination)
@@ -1074,11 +1113,13 @@ export default function App() {
               {message}
             </pre>
             <div className="mt-3 hidden gap-2 lg:flex">{actionButtons}</div>
+            <div className="hidden lg:block">{calendarRegistrationLinks}</div>
           </CardContent>
         </Card>
       </div>
 
       <div className="bg-background/95 fixed inset-x-0 bottom-0 border-t p-2 backdrop-blur lg:hidden">
+        <div className="mx-auto max-w-md">{calendarRegistrationLinks}</div>
         <div className="mx-auto flex max-w-md gap-2">{actionButtons}</div>
       </div>
     </div>
