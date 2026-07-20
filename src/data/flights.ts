@@ -14,6 +14,22 @@ export type Flight = {
 export const SCHEDULE_LAST_VERIFIED = "2026-07-19"
 export const SCHEDULE_VALID_FROM = "2026-07-01"
 export const SCHEDULE_VALID_TO = "2026-10-24"
+export const SCHEDULE_DATA_VERSION = "2026-07-19"
+export const SCHEDULE_WARNING_DAYS = 14
+export const SCHEDULE_SOURCE_LINKS = [
+  {
+    label: "ANA 北海道内路線時刻表",
+    url: "https://www.ana.co.jp/guide/plan/airinfo/dom-timetable/pdf/timetable_hokkaido_20260701_20261024.pdf",
+  },
+  {
+    label: "JAL 国内線 運航路線・時刻表",
+    url: "https://www.jal.co.jp/jp/ja/dom/route/plan/operation.html",
+  },
+  {
+    label: "HAC 時刻表・発着案内",
+    url: "https://www.info.hac-air.co.jp/route_time/",
+  },
+] as const
 
 // 実データに基づく時刻表（2026年7月時点で調査・確認）
 // キーは "出発地コード-到着地コード"

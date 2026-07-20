@@ -1,5 +1,5 @@
-import { useMemo, useState, type ReactNode } from "react"
-import { CalendarPlus, Copy, MapPinPlus, Plane, Plus, X } from "lucide-react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { CalendarPlus, Check, Copy, ExternalLink, Info, MapPinPlus, Plane, Plus, X } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -13,9 +13,10 @@ import {
 } from "@/components/ui/select"
 import { AIRPORTS, airportLabel } from "@/data/airports"
 import {
-  SCHEDULE_LAST_VERIFIED,
-  SCHEDULE_VALID_FROM,
+  SCHEDULE_DATA_VERSION,
+  SCHEDULE_SOURCE_LINKS,
   SCHEDULE_VALID_TO,
+  SCHEDULE_WARNING_DAYS,
   getFlights,
   getFlightsForDate,
   getScheduleDateStatus,
@@ -41,6 +42,8 @@ const dateInputClass =
   "border-input bg-transparent box-border flex h-7 w-full min-w-0 rounded-md border px-2 py-1 text-sm shadow-xs lg:text-[1.09375rem] [&::-webkit-calendar-picker-indicator]:ml-auto [&::-webkit-calendar-picker-indicator]:mr-0"
 const secondaryActionButtonClass =
   "h-7 w-[10.625rem] gap-1.5 active:bg-muted lg:w-[12.25rem] lg:text-[0.9375rem]"
+const scheduleSeenStorageKey = "flight-request-tool:schedule-data-version"
+const scheduleDismissedStorageKey = "flight-request-tool:schedule-notice-dismissed"
 
 function PlanePlusIcon() {
   return (
@@ -58,6 +61,12 @@ function todayString(): string {
   return `${d.getFullYear()}-${m}-${day}`
 }
 
+function daysUntil(dateStr: string): number {
+  const today = new Date(`${todayString()}T00:00:00`)
+  const target = new Date(`${dateStr}T00:00:00`)
+  return Math.ceil((target.getTime() - today.getTime()) / 86_400_000)
+}
+
 function formatDateJp(dateStr: string): string {
   if (!dateStr) return ""
   const d = new Date(`${dateStr}T00:00:00`)
@@ -68,6 +77,12 @@ function formatDateJp(dateStr: string): string {
 function filterFlights(flights: Flight[], period: "ALL" | Period): Flight[] {
   if (period === "ALL") return flights
   return flights.filter((f) => f.period === period)
+}
+
+function formatDateLongJp(dateStr: string): string {
+  if (!dateStr) return ""
+  const [year, month, day] = dateStr.split("-")
+  return `${year}年${month}月${day}日`
 }
 
 function flightLabel(flights: Flight[], flightNo: string): string {
@@ -325,6 +340,12 @@ export default function App() {
   const [outboundBackup, setOutboundBackup] = useState<BackupLegState | null>(null)
   const [inboundBackup, setInboundBackup] = useState<BackupLegState | null>(null)
   const [copied, setCopied] = useState(false)
+  const [seenScheduleVersion, setSeenScheduleVersion] = useState<string | null>(() =>
+    localStorage.getItem(scheduleSeenStorageKey)
+  )
+  const [scheduleNoticeDismissed, setScheduleNoticeDismissed] = useState(
+    () => localStorage.getItem(scheduleDismissedStorageKey) === SCHEDULE_DATA_VERSION
+  )
   // nullの間は復路の空港を往路から自動で反転させる(目的地→出発地)。
   // 個別に変更されたら独立した値を持ち、往路を変えても連動しなくなる。
   const [inboundAirports, setInboundAirports] = useState<{
@@ -336,6 +357,24 @@ export default function App() {
   const inboundDestination = inboundAirports?.destination ?? origin
   const outboundBackupOrigin = outboundBackup?.airport ?? origin
   const inboundBackupDestination = inboundBackup?.airport ?? inboundDestination
+  const daysToScheduleEnd = daysUntil(SCHEDULE_VALID_TO)
+  const hasNewScheduleData = seenScheduleVersion !== SCHEDULE_DATA_VERSION
+  const isScheduleExpired = daysToScheduleEnd < 0
+  const isScheduleExpiringSoon =
+    daysToScheduleEnd >= 0 && daysToScheduleEnd <= SCHEDULE_WARNING_DAYS
+  const showScheduleNotice =
+    hasNewScheduleData || isScheduleExpired || (isScheduleExpiringSoon && !scheduleNoticeDismissed)
+
+  useEffect(() => {
+    if (hasNewScheduleData) setScheduleNoticeDismissed(false)
+  }, [hasNewScheduleData])
+
+  const markScheduleNoticeChecked = () => {
+    localStorage.setItem(scheduleSeenStorageKey, SCHEDULE_DATA_VERSION)
+    localStorage.setItem(scheduleDismissedStorageKey, SCHEDULE_DATA_VERSION)
+    setSeenScheduleVersion(SCHEDULE_DATA_VERSION)
+    setScheduleNoticeDismissed(true)
+  }
 
   const outboundFlights = useMemo(
     () => getFlightsForDate(origin, destination, departureDate),
@@ -695,15 +734,44 @@ export default function App() {
           </h1>
         </header>
 
-        <div className="border-border bg-muted/50 text-muted-foreground rounded-md border px-3 py-2 text-xs leading-relaxed lg:col-span-2 lg:text-sm">
-          <p>
-            対応ダイヤ: {SCHEDULE_VALID_FROM.replaceAll("-", "/")}〜
-            {SCHEDULE_VALID_TO.replaceAll("-", "/")}（最終確認: {SCHEDULE_LAST_VERIFIED.replaceAll("-", "/")}）
-          </p>
-          <p>
-            個人制作の補助ツールです。運休・時刻変更の可能性があるため、予約前に航空会社公式サイトで必ずご確認ください。
-          </p>
-        </div>
+        {showScheduleNotice && (
+          <div className="border-foreground/20 bg-muted/40 rounded-md border px-3 py-2 text-xs leading-none lg:col-span-2 lg:text-sm">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <Info className="size-3.5 shrink-0 lg:size-4" />
+                <span className="truncate">
+                  {hasNewScheduleData
+                    ? `便データ確認日：${formatDateLongJp(SCHEDULE_DATA_VERSION)}`
+                    : isScheduleExpired
+                      ? "対応ダイヤ期間を過ぎています"
+                      : `対応期限まで残り${daysToScheduleEnd}日`}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:justify-end">
+                {SCHEDULE_SOURCE_LINKS.map((source) => (
+                  <a
+                    key={source.url}
+                    href={source.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-muted-foreground underline underline-offset-2"
+                  >
+                    {source.label}
+                    <ExternalLink className="size-3" />
+                  </a>
+                ))}
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 text-muted-foreground underline underline-offset-2"
+                  onClick={markScheduleNoticeChecked}
+                >
+                  <Check className="size-3" />
+                  確認済み
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <Card className="gap-3 py-3">
           <CardContent className="space-y-3 px-3">
