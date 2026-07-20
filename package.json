@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npm run flights:check && tsc -b && vite build",
+    "flights:check": "node scripts/check-flight-schedule.mjs",
+    "flights:scan": "node scripts/scan-flight-sources.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },

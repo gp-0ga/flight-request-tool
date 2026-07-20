@@ -1,0 +1,35 @@
+{
+  "scannedAt": "2026-07-19T15:25:35.210Z",
+  "sources": {
+    "ana-hokkaido-timetable": {
+      "id": "ana-hokkaido-timetable",
+      "label": "ANA 北海道内路線時刻表",
+      "url": "https://www.ana.co.jp/guide/plan/airinfo/dom-timetable/pdf/timetable_hokkaido_20260701_20261024.pdf",
+      "status": 200,
+      "etag": "\"10ab9c-64fef3196ac00-gzip\"",
+      "lastModified": "Tue, 21 Apr 2026 02:30:08 GMT",
+      "contentLength": "0",
+      "checkedAt": "2026-07-19T15:25:35.208Z"
+    },
+    "jal-domestic-operation": {
+      "id": "jal-domestic-operation",
+      "label": "JAL 国内線 運航路線・時刻表",
+      "url": "https://www.jal.co.jp/jp/ja/dom/route/plan/operation.html",
+      "status": 403,
+      "etag": null,
+      "lastModified": null,
+      "contentLength": "428",
+      "checkedAt": "2026-07-19T15:25:26.127Z"
+    },
+    "hac-route-time": {
+      "id": "hac-route-time",
+      "label": "HAC 時刻表・発着案内",
+      "url": "https://www.info.hac-air.co.jp/route_time/",
+      "status": 200,
+      "etag": null,
+      "lastModified": null,
+      "contentLength": null,
+      "checkedAt": "2026-07-19T15:25:26.302Z"
+    }
+  }
+}
